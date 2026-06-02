@@ -1,0 +1,43 @@
+target/
+*.class
+*.jar
+*.log
+.idea/
+*.iml
+.DS_Store
+.vscode/
+.idea/
+*/certs/
+
+.claude/
+
+CLAUDE.md
+BACKEND_GAPS.md
+
+# JWT keys are GENERATED at build time (gmavenplus in the parent pom) and never committed:
+#   • shared dev keypair → /.dev-keys/ (ignored below)
+#   • per-build main/test keys → target/ (already ignored)
+# Belt-and-suspenders: never track keys that land in a source tree, and ignore the dev pair.
+/.dev-keys/
+**/src/main/resources/META-INF/keys/
+**/src/test/resources/META-INF/keys/
+
+# Environment variables (credentials, local config)
+.env
+.env.local
+.env.*.local
+
+# Deployment secrets, Terraform state, and generated keys.
+# NOTE: the deploy/ CODE (terraform .tf, scripts, compose, Caddy/nginx, READMEs) IS tracked
+# in the PRIVATE repo. Only real secrets are ignored below. The *.example templates
+# (.env.prod.example, terraform.tfvars.example) are tracked — *.tfvars does not match them.
+deploy/**/.env
+deploy/**/.env.prod
+deploy/**/*.tfvars
+deploy/**/.terraform/
+deploy/**/.terraform.lock.hcl
+deploy/**/terraform.tfstate
+deploy/**/terraform.tfstate.*
+deploy/**/*.tfplan
+deploy/**/keys/
+deploy/**/*.pem

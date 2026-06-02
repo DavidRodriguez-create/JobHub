@@ -1,0 +1,137 @@
+# JobHub — full local stack (PostgreSQL + 4 Quarkus services + Vite UI) — NATIVE mode.
+#
+# Backend services built as native GraalVM images using Dockerfile.native.
+# Package the services first with native compilation (takes 5-10 minutes):
+#     mvn -DskipTests package -Pnative
+#     podman compose -f podman-compose.native.yml up -d --build
+#
+# For JVM images, use:
+#     mvn -DskipTests package
+#     podman compose -f podman-compose.yml up -d --build
+#
+# Native images are tiny (~200MB) and start in <1 second.
+# The UI is built with Vite and served by nginx (production build) — open http://localhost:80.
+#
+# Reset the database (re-run db/init + db/seeds): podman compose -f podman-compose.native.yml down -v
+#
+# Credentials are loaded from .env (git-ignored) — do not commit secrets to the repo.
+version: "3.8"
+
+# Database configuration — each service uses its own schema with least-privilege credentials from .env
+x-crawler-db: &crawler-db
+  DATABASE_URL: ${CRAWLER_DATABASE_URL}
+  DATABASE_USERNAME: ${CRAWLER_DATABASE_USERNAME}
+  DATABASE_PASSWORD: ${CRAWLER_DATABASE_PASSWORD}
+
+x-job-db: &job-db
+  DATABASE_URL: ${JOB_DATABASE_URL}
+  DATABASE_USERNAME: ${JOB_DATABASE_USERNAME}
+  DATABASE_PASSWORD: ${JOB_DATABASE_PASSWORD}
+
+x-auth-db: &auth-db
+  DATABASE_URL: ${AUTH_DATABASE_URL}
+  DATABASE_USERNAME: ${AUTH_DATABASE_USERNAME}
+  DATABASE_PASSWORD: ${AUTH_DATABASE_PASSWORD}
+
+x-applications-db: &applications-db
+  DATABASE_URL: ${APPLICATIONS_DATABASE_URL}
+  DATABASE_USERNAME: ${APPLICATIONS_DATABASE_USERNAME}
+  DATABASE_PASSWORD: ${APPLICATIONS_DATABASE_PASSWORD}
+
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    container_name: jobhub-db
+    environment:
+      POSTGRES_USER: jobhub
+      POSTGRES_PASSWORD: jobhub
+      POSTGRES_DB: jobhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # User creation (runs as bash script with env var substitution), then schemas + seeds
+      - ./db/init-users.sh:/docker-entrypoint-initdb.d/000-init-users.sh:ro
+      - ./db/init/001-schemas.sql:/docker-entrypoint-initdb.d/001-schemas.sql:ro
+      - ./db/init/010-crawler.sql:/docker-entrypoint-initdb.d/010-crawler.sql:ro
+      - ./db/seeds/011-crawler-seeds.sql:/docker-entrypoint-initdb.d/011-crawler-seeds.sql:ro
+      - ./db/init/020-auth.sql:/docker-entrypoint-initdb.d/020-auth.sql:ro
+      - ./db/seeds/021-auth-seeds.sql:/docker-entrypoint-initdb.d/021-auth-seeds.sql:ro
+      - ./db/init/030-applications.sql:/docker-entrypoint-initdb.d/030-applications.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobhub -d jobhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Scheduled batch crawler — writes to the crawler schema. No published port.
+  crawler-service:
+    build:
+      context: .
+      dockerfile: crawler-service/src/main/docker/Dockerfile.native
+    container_name: jobhub-crawler-service
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *crawler-db
+
+  job-service:
+    build:
+      context: .
+      dockerfile: job-service/src/main/docker/Dockerfile.native
+    container_name: jobhub-job-service
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *job-db
+    ports:
+      - "8081:8081"
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/src/main/docker/Dockerfile.native
+    container_name: jobhub-auth-service
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *auth-db
+    ports:
+      - "8082:8082"
+
+  application-service:
+    build:
+      context: .
+      dockerfile: application-service/src/main/docker/Dockerfile.native
+    container_name: jobhub-application-service
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *applications-db
+      # Outbound calls to the other services (snapshot a crawled job; consume a
+      # delete-all-applications verification code).
+      JOB_SERVICE_URL: http://job-service:8081
+      AUTH_SERVICE_URL: http://auth-service:8082
+    ports:
+      - "8083:8083"
+
+  # Frontend — nginx serving the production Vite build.
+  # Backend proxying is handled by nginx.conf (no Vite proxy needed).
+  jobhub-ui:
+    build:
+      context: ./JobHub-ui
+      dockerfile: Dockerfile
+    container_name: jobhub-ui
+    depends_on:
+      - auth-service
+      - job-service
+      - application-service
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:

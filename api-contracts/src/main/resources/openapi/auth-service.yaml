@@ -1,0 +1,538 @@
+openapi: 3.0.3
+info:
+  title: JobHub — Auth Service
+  version: 1.0.0
+  description: |
+    Authentication, account management, and identity verification for JobHub.
+
+servers:
+  - url: /auth
+    description: Path-prefixed via Vite dev proxy (`/auth → localhost:8082`) and nginx.
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Public registration and login endpoints
+  - name: Account
+    description: Authenticated account management
+  - name: Verifications
+    description: Email-based two-factor verification for irreversible operations
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "MicroProfile JWT. Obtain a token from POST /auth/login; send as `Authorization: Bearer <token>`."
+
+  schemas:
+
+    # ── Request schemas ────────────────────────────────────────────────────────
+
+    RegisterRequest:
+      x-implementation-status: existing
+      type: object
+      required: [firstName, lastName, email, password]
+      properties:
+        firstName:
+          type: string
+          maxLength: 100
+        lastName:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+
+    LoginRequest:
+      x-implementation-status: existing
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+
+    UpdateAccountRequest:
+      x-implementation-status: existing
+      description: All fields are optional — only supplied fields are updated.
+      type: object
+      properties:
+        firstName:
+          type: string
+          maxLength: 100
+        lastName:
+          type: string
+          maxLength: 100
+
+    ChangePasswordRequest:
+      description: Requires the current password before accepting a new one, preventing unauthorised changes.
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          minLength: 1
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 100
+
+    VerifyEmailRequest:
+      description: Consumes the one-time token delivered by the verification email.
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 1
+
+    ResendVerificationRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    VerifiedActionRequest:
+      type: object
+      required: [verificationId, code]
+      properties:
+        verificationId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          description: The 6-digit code sent to the user's registered email address.
+
+    VerificationRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [delete-account, delete-all-applications]
+          description: |
+            The action this code will authorize. Included in the email body so the user
+            knows exactly what they are confirming.
+            - `delete-account` — permanently deletes the account and all associated data
+            - `delete-all-applications` — permanently deletes all applications and their data
+
+    ConsumeVerificationRequest:
+      type: object
+      required: [verificationId, code, action]
+      properties:
+        verificationId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          description: The 6-digit code sent to the user's registered email address.
+        action:
+          type: string
+          enum: [delete-account, delete-all-applications]
+          description: The action the code must have been issued for. Must match the stored code.
+
+    # ── Response schemas ───────────────────────────────────────────────────────
+
+    LoginResponse:
+      x-implementation-status: existing
+      type: object
+      required: [token, expiresIn, account]
+      properties:
+        token:
+          type: string
+        expiresIn:
+          type: integer
+          format: int64
+          description: Token lifetime in seconds
+        account:
+          $ref: '#/components/schemas/AccountResponse'
+
+    AccountResponse:
+      x-implementation-status: existing
+      type: object
+      required: [id, firstName, lastName, email, emailVerified]
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        emailVerified:
+          type: boolean
+          default: false
+
+    VerificationResponse:
+      type: object
+      required: [verificationId, expiresAt]
+      properties:
+        verificationId:
+          type: string
+          format: uuid
+        expiresAt:
+          type: string
+          format: date-time
+          description: Codes expire after 15 minutes.
+
+    # ── Error ──────────────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error title
+        message:
+          type: string
+          description: Detail explaining what went wrong
+
+paths:
+
+  # ── Public ───────────────────────────────────────────────────────────────────
+
+  /register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Register a new user
+      x-implementation-status: existing
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Authenticate and obtain a JWT
+      x-implementation-status: existing
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: JWT and account profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Authenticated ─────────────────────────────────────────────────────────────
+
+  /account:
+    get:
+      tags: [Account]
+      operationId: getAccount
+      summary: Get the authenticated user's account
+      x-implementation-status: existing
+      responses:
+        '200':
+          description: Account profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Account]
+      operationId: updateAccount
+      summary: Update account fields
+      x-implementation-status: existing
+      description: |
+        All fields are optional — only supplied fields are updated.
+        Password changes must use `POST /auth/account/change-password` which enforces
+        current-password verification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountRequest'
+      responses:
+        '200':
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Account]
+      operationId: deleteAccount
+      summary: Delete the authenticated user's account
+      description: |
+        Permanently deletes the account and all associated data.
+        Requires a valid verification code obtained from `POST /auth/account/verifications`
+        with action `delete-account`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifiedActionRequest'
+      responses:
+        '204':
+          description: Account deleted
+        '400':
+          description: Invalid or expired verification code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /account/change-password:
+    post:
+      tags: [Account]
+      operationId: changePassword
+      summary: Change password
+      description: |
+        Requires the current password before accepting a new one.
+        Supersedes the insecure `password` field on `PATCH /auth/account`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Password changed
+        '400':
+          description: New password fails validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Current password incorrect or Bearer token missing
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /account/verify-email:
+    post:
+      tags: [Account]
+      operationId: verifyEmail
+      summary: Verify email address
+      description: Marks `emailVerified = true` on the account. The token is delivered by the registration email.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '204':
+          description: Email verified
+        '400':
+          description: Token invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /account/resend-verification:
+    post:
+      tags: [Account]
+      operationId: resendVerification
+      summary: Resend the email verification message
+      description: |
+        Sends a new verification email if the address is registered and unverified.
+        Silently no-ops if the email is already verified or not found, to avoid email enumeration.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+      responses:
+        '204':
+          description: Verification email sent (or silently ignored)
+        '400':
+          description: Invalid email format in request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many resend requests — try again later
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Verifications ─────────────────────────────────────────────────────────────
+
+  /account/verifications:
+    post:
+      tags: [Verifications]
+      operationId: requestVerification
+      summary: Request an email verification code for a destructive action
+      description: |
+        Sends a one-time 6-digit code to the user's registered email address.
+        The `verificationId` and code must be passed to the target destructive endpoint
+        within 15 minutes. The email body names the action so the user knows what they are confirming.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRequest'
+      responses:
+        '200':
+          description: Verification email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '429':
+          description: Too many verification requests — try again later
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /account/verifications/consume:
+    post:
+      tags: [Verifications]
+      operationId: consumeVerification
+      summary: Validate and consume a verification code (service-to-service)
+      description: |
+        Internal endpoint used by other JobHub services to validate and atomically consume
+        a verification code before performing a destructive action they own — for example
+        application-service deleting all of a user's applications.
+        The user is identified by the Bearer token; the code must belong to that user,
+        match the named `action`, and be unused and unexpired. The code is consumed (single use).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsumeVerificationRequest'
+      responses:
+        '204':
+          description: Code valid and consumed
+        '400':
+          description: Invalid, expired, already-used, or action-mismatched code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

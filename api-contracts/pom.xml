@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.davidcreate.jobhub</groupId>
+    <artifactId>jobhub-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>api-contracts</artifactId>
+  <packaging>jar</packaging>
+  <description>
+    OpenAPI 3.0 contracts for all JobHub services.
+    This module is the single source of truth for every service's API surface.
+    The YAML files under src/main/resources/openapi/ are packaged into the JAR,
+    and compiled JAX-RS interfaces + model classes are generated from them so
+    services can implement/depend on this artifact directly.
+
+    Each spec uses x-implementation-status on operations and schema properties:
+      existing — already implemented in the service
+      planned  — needed to fully wire the UI (see JobHub-ui/BACKEND_GAPS.md)
+  </description>
+
+  <!--
+    Compile-time stubs only — JAX-RS, Validation, and Jackson are provided
+    by Quarkus in every service that depends on this artifact.
+  -->
+  <dependencies>
+    <dependency>
+      <groupId>jakarta.ws.rs</groupId>
+      <artifactId>jakarta.ws.rs-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.annotation</groupId>
+      <artifactId>jakarta.annotation-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.openapitools</groupId>
+        <artifactId>openapi-generator-maven-plugin</artifactId>
+        <version>7.10.0</version>
+        <executions>
+
+          <!-- ── Auth Service ───────────────────────────────────────────── -->
+          <execution>
+            <id>generate-auth-api</id>
+            <goals><goal>generate</goal></goals>
+            <configuration>
+              <inputSpec>${project.basedir}/src/main/resources/openapi/auth-service.yaml</inputSpec>
+              <generatorName>jaxrs-spec</generatorName>
+              <output>${project.build.directory}/generated-sources/auth-api</output>
+              <apiPackage>com.davidcreate.jobhub.auth.contract.api</apiPackage>
+              <modelPackage>com.davidcreate.jobhub.auth.contract.model</modelPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <interfaceOnly>true</interfaceOnly>
+                <useJakartaEe>true</useJakartaEe>
+                <returnResponse>true</returnResponse>
+                <serializationLibrary>jackson</serializationLibrary>
+                <useBeanValidation>true</useBeanValidation>
+                <useSwaggerAnnotations>false</useSwaggerAnnotations>
+                <openApiNullable>false</openApiNullable>
+                <dateLibrary>java8</dateLibrary>
+                <sourceFolder>.</sourceFolder>
+              </configOptions>
+            </configuration>
+          </execution>
+
+          <!-- ── Application Service ───────────────────────────────────── -->
+          <execution>
+            <id>generate-application-api</id>
+            <goals><goal>generate</goal></goals>
+            <configuration>
+              <inputSpec>${project.basedir}/src/main/resources/openapi/application-service.yaml</inputSpec>
+              <generatorName>jaxrs-spec</generatorName>
+              <output>${project.build.directory}/generated-sources/application-api</output>
+              <apiPackage>com.davidcreate.jobhub.application.contract.api</apiPackage>
+              <modelPackage>com.davidcreate.jobhub.application.contract.model</modelPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <interfaceOnly>true</interfaceOnly>
+                <useJakartaEe>true</useJakartaEe>
+                <returnResponse>true</returnResponse>
+                <serializationLibrary>jackson</serializationLibrary>
+                <useBeanValidation>true</useBeanValidation>
+                <useSwaggerAnnotations>false</useSwaggerAnnotations>
+                <openApiNullable>false</openApiNullable>
+                <dateLibrary>java8</dateLibrary>
+                <sourceFolder>.</sourceFolder>
+              </configOptions>
+            </configuration>
+          </execution>
+
+          <!-- ── Job Service ───────────────────────────────────────────── -->
+          <execution>
+            <id>generate-job-api</id>
+            <goals><goal>generate</goal></goals>
+            <configuration>
+              <inputSpec>${project.basedir}/src/main/resources/openapi/job-service.yaml</inputSpec>
+              <generatorName>jaxrs-spec</generatorName>
+              <output>${project.build.directory}/generated-sources/job-api</output>
+              <apiPackage>com.davidcreate.jobhub.job.contract.api</apiPackage>
+              <modelPackage>com.davidcreate.jobhub.job.contract.model</modelPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <interfaceOnly>true</interfaceOnly>
+                <useJakartaEe>true</useJakartaEe>
+                <returnResponse>true</returnResponse>
+                <serializationLibrary>jackson</serializationLibrary>
+                <useBeanValidation>true</useBeanValidation>
+                <useSwaggerAnnotations>false</useSwaggerAnnotations>
+                <openApiNullable>false</openApiNullable>
+                <dateLibrary>java8</dateLibrary>
+                <sourceFolder>.</sourceFolder>
+              </configOptions>
+            </configuration>
+          </execution>
+
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

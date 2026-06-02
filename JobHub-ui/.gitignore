@@ -1,0 +1,8 @@
+node_modules/
+.pnpm-store/
+dist/
+*.local
+.vite/
+
+package-lock.json
+yarn.lock

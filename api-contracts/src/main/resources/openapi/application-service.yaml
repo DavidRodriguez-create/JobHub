@@ -1,0 +1,757 @@
+openapi: 3.0.3
+info:
+  title: JobHub — Application Service
+  version: 1.0.0
+  description: |
+    REST API for tracking job applications and retrieving aggregate statistics
+    for the Dashboard.
+
+    This is the v1 contract. Every endpoint and field below is implemented by the service.
+
+servers:
+  - url: /
+    description: All paths are routed to application-service:8083.
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Applications
+    description: Track job applications (crawled-job and manual)
+  - name: Stats
+    description: Aggregate metrics for the Dashboard screen
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    # ── Status enum ────────────────────────────────────────────────────────────
+
+    ApplicationStatus:
+      type: string
+      description: |
+        Application pipeline status. Terminal states are `rejected`, `accepted`,
+        `withdrawn`, and `ghosted` (these stamp `endedAt`).
+
+        **Naming alignment needed:**
+        - UI sends `interview` — backend stores `interviewing`
+        - UI sends `offer`     — backend stores `offered`
+
+        Backend enum is the source of truth; the UI must align.
+      enum:
+        - applied
+        - screening
+        - interviewing
+        - offered
+        - rejected
+        - accepted
+        - withdrawn
+        - ghosted
+
+    # ── Response schemas ───────────────────────────────────────────────────────
+
+    ApplicationResponse:
+      x-implementation-status: existing
+      type: object
+      required: [id, status, appliedAt, createdAt, updatedAt, job]
+      properties:
+        id:
+          type: string
+          format: uuid
+        jobPostId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            The originating job-service job post id, for crawled-job applications. Null for
+            manual entries. Lets clients map an application back to a row in job search
+            (e.g. to mark it "Applied" and prevent re-applying).
+        jobPostSnapshotId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Populated for crawled-job applications. Null for manual entries.
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        appliedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Set when status reaches a terminal state (rejected/accepted/withdrawn/ghosted)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        job:
+          description: |
+            Unified job info for display. Always present — the list view depends on it.
+            For crawled-job applications this is a frozen snapshot taken at application time.
+            For manual entries it reflects the current state of the user-entered job details (always live).
+          allOf:
+            - $ref: '#/components/schemas/JobSummary'
+        notes:
+          type: string
+          description: Freeform notes shown in the application detail view.
+        nextStep:
+          description: Upcoming action shown on kanban cards and the Dashboard coming-up widget.
+          allOf:
+            - $ref: '#/components/schemas/NextStep'
+        contact:
+          type: string
+          maxLength: 200
+          description: Recruiter or contact name shown in the detail view.
+        portalUrl:
+          type: string
+          format: uri
+          maxLength: 2000
+          description: URL of the company's application portal, if different from the job post URL.
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineEntry'
+          description: |
+            Ordered list of status-change events, oldest first. Populated automatically
+            by each call to `PATCH /applications/{id}/status`.
+            Only populated on `GET /applications/{id}` — omitted from the list response.
+
+    JobSummary:
+      description: |
+        Minimal job info embedded in ApplicationResponse. Always populated — required for the application list view.
+        For crawled-job applications the data is frozen at application time.
+        For manual-entry applications the data reflects the current state of the user-entered job details.
+      type: object
+      properties:
+        title:
+          type: string
+        company:
+          type: string
+        location:
+          type: string
+          description: "e.g. 'Barcelona, Spain' or 'Remote'"
+        url:
+          type: string
+          format: uri
+
+    NextStep:
+      type: object
+      properties:
+        label:
+          type: string
+          maxLength: 200
+          description: "e.g. 'Technical interview', 'Send portfolio'"
+        date:
+          type: string
+          format: date
+          nullable: true
+        reminderAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When to notify the user about this step. Optional — if omitted no reminder is sent.
+
+    TimelineEntry:
+      type: object
+      required: [status, occurredAt]
+      properties:
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        occurredAt:
+          type: string
+          format: date-time
+
+    ApplicationPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+
+    ApplicationStatsResponse:
+      x-implementation-status: existing
+      type: object
+      properties:
+
+        # ── Pipeline ──────────────────────────────────────────────────────────
+        total:
+          type: integer
+          format: int64
+          description: Total number of applications ever created.
+        activeCount:
+          type: integer
+          description: Applications in non-terminal states (excludes rejected/accepted/withdrawn/ghosted).
+        byStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+          description: "Map of status → count, e.g. {\"applied\": 4, \"interviewing\": 3}"
+
+        # ── Monthly activity ──────────────────────────────────────────────────
+        monthlyNew:
+          type: integer
+          description: Applications created in the current calendar month.
+
+        # ── Rates & timings ───────────────────────────────────────────────────
+        responseRate:
+          type: number
+          format: double
+          description: Percentage of applications that received any response (moved past `applied`).
+        avgReplyDays:
+          type: number
+          format: double
+          description: Average days between `appliedAt` and the first status change.
+        passThrough:
+          type: number
+          format: double
+          description: Percentage of applications that reached `offered` status (offer rate).
+
+        # ── Upcoming ──────────────────────────────────────────────────────────
+        nextDeadline:
+          description: |
+            Earliest upcoming `nextStep.date` across all active applications.
+            Used for the 'Respond by …' label on the Offers card.
+          allOf:
+            - $ref: '#/components/schemas/NextDeadline'
+
+
+    NextDeadline:
+      description: The earliest upcoming nextStep.date across all active applications.
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        applicationId:
+          type: string
+          format: uuid
+
+    MonthlyCount:
+      x-implementation-status: existing
+      type: object
+      required: [year, month, byStatus]
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        byStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+          description: "Count per status for this month, e.g. {\"applied\": 5, \"interviewing\": 2, \"rejected\": 1}"
+
+    # ── Request schemas ────────────────────────────────────────────────────────
+
+    CreateApplicationRequest:
+      x-implementation-status: existing
+      type: object
+      description: |
+        Supply either `jobPostId` (application to a crawled job post) or `jobDetails`
+        (manually entered job) — exactly one must be provided.
+        For manual entries the job details are stored as a mutable record accessible
+        and updatable via `/applications/{id}/job`.
+      properties:
+        jobPostId:
+          type: string
+          format: uuid
+          description: ID of the crawled job post being applied to.
+        jobDetails:
+          description: Job details for a manual-entry application. Ignored if `jobPostId` is set.
+          allOf:
+            - $ref: '#/components/schemas/JobDetailsRequest'
+
+    UpdateApplicationStatusRequest:
+      x-implementation-status: existing
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+
+    UpdateApplicationRequest:
+      description: |
+        Partial update payload for the editable fields of an application. Supply only the fields to change.
+        Status changes use the dedicated `PATCH /applications/{id}/status` endpoint
+        so that each status change is recorded in the timeline.
+        Job details of a manual-entry application are updated via `PATCH /applications/{id}/job`.
+      type: object
+      properties:
+        notes:
+          type: string
+          maxLength: 5000
+        appliedAt:
+          type: string
+          format: date-time
+          description: Correct the applied date if it was entered wrong.
+        nextStep:
+          $ref: '#/components/schemas/NextStep'
+        contact:
+          type: string
+          maxLength: 200
+        portalUrl:
+          type: string
+          format: uri
+          maxLength: 2000
+
+    JobDetailsRequest:
+      x-implementation-status: existing
+      description: |
+        Job details entered manually by the user. All fields are optional —
+        provide at least `title` or `url` on creation.
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        company:
+          type: string
+          maxLength: 200
+        url:
+          type: string
+          format: uri
+          maxLength: 2000
+          description: Job posting URL
+        location:
+          type: string
+          maxLength: 200
+          description: "Location of the role, e.g. 'Barcelona, Spain' or 'Remote'"
+
+    # ── Verification ──────────────────────────────────────────────────────────
+
+    VerifiedActionRequest:
+      type: object
+      required: [verificationId, code]
+      properties:
+        verificationId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          description: The 6-digit code sent to the user's registered email address.
+
+    # ── Error ──────────────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error title
+        message:
+          type: string
+          description: Detail explaining what went wrong
+
+paths:
+
+  # ── Applications ─────────────────────────────────────────────────────────────
+
+  /applications:
+    delete:
+      tags: [Applications]
+      operationId: deleteAllApplications
+      summary: Delete all applications for the authenticated user
+      description: |
+        Permanently deletes all applications and their associated data (job details, timeline).
+        Requires a valid verification code obtained from `POST /auth/account/verifications`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifiedActionRequest'
+      responses:
+        '204':
+          description: All applications deleted
+        '400':
+          description: Invalid or expired verification code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Applications]
+      operationId: createApplication
+      summary: Create an application
+      x-implementation-status: existing
+      description: |
+        Creates a new application. Supply either `jobPostId` (crawled job) or `jobDetails`
+        (manual entry) — exactly one must be provided.
+        For manual entries the job details are stored as a mutable record linked to this
+        application, updatable later via `PATCH /applications/{id}/job`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+      responses:
+        '201':
+          description: Application created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          description: Validation error — neither or both of jobPostId/jobDetails supplied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Job post not found — the supplied jobPostId does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The authenticated user already has an application for this job post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [Applications]
+      operationId: listApplications
+      summary: List the authenticated user's applications
+      x-implementation-status: existing
+      description: |
+        Returns a paginated list of applications belonging to the authenticated user.
+        User identity is derived from the Bearer token — no user ID in the path.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ApplicationStatus'
+          description: Filter by status
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated application list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationPage'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /applications/stats:
+    get:
+      tags: [Stats]
+      operationId: getApplicationStats
+      summary: Aggregate statistics for the Dashboard
+      x-implementation-status: existing
+      description: Lightweight summary for the dashboard cards. For the historical chart use `GET /applications/stats/history`.
+      responses:
+        '200':
+          description: Aggregate statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationStatsResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /applications/stats/history:
+    get:
+      tags: [Stats]
+      operationId: getApplicationStatsHistory
+      summary: Monthly application breakdown for the trend chart
+      description: |
+        Returns per-month counts broken down by status. Intended for lazy-loading
+        the trend chart separately from the dashboard summary.
+      parameters:
+        - name: months
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 24
+            default: 6
+          description: Number of months of history to return, counting back from the current month.
+      responses:
+        '200':
+          description: Monthly breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MonthlyCount'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /applications/{id}:
+    get:
+      tags: [Applications]
+      operationId: getApplication
+      summary: Get a single application
+      x-implementation-status: existing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Application not found or belongs to another user
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Applications]
+      operationId: updateApplication
+      summary: Update editable application fields
+      description: |
+        Partial update for notes, appliedAt, nextStep, contact, and portalUrl.
+        Supply only the fields to change. Status changes use `PATCH /applications/{id}/status`.
+        Job details of a manual-entry application are updated via `PATCH /applications/{id}/job`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApplicationRequest'
+      responses:
+        '200':
+          description: Updated application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Application not found or belongs to another user
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Applications]
+      operationId: deleteApplication
+      summary: Delete an application
+      x-implementation-status: existing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Application deleted
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Application not found or belongs to another user
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /applications/{id}/status:
+    patch:
+      tags: [Applications]
+      operationId: updateApplicationStatus
+      summary: Update the status of an application
+      x-implementation-status: existing
+      description: |
+        Updates the current status. Once the timeline feature is implemented, each
+        call will also append a TimelineEntry.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApplicationStatusRequest'
+      responses:
+        '200':
+          description: Updated application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Application not found or belongs to another user
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /applications/{id}/job:
+    patch:
+      tags: [Applications]
+      operationId: updateApplicationJob
+      summary: Update the job details of a manual-entry application
+      x-implementation-status: existing
+      description: |
+        Partial update for the job info (title, company, url, location) of a manual-entry application.
+        Supply only the fields to change. Returns 409 for crawled-job applications — their snapshot is immutable.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobDetailsRequest'
+      responses:
+        '200':
+          description: Updated application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Application not found or belongs to another user
+        '409':
+          description: Cannot update job details on a crawled-job application — its snapshot is immutable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+

@@ -1,0 +1,4 @@
+# Documentation toolchain (MkDocs Material + live OpenAPI rendering).
+# Used by .github/workflows/docs.yml and docs/Dockerfile.
+mkdocs-material>=9.5,<10
+mkdocs-swagger-ui-tag>=0.6

@@ -1,0 +1,13 @@
+<svg width="160" height="36" viewBox="0 0 160 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="hex-clip">
+      <path d="M14 3.2 Q16 2 18 3.2 L27 8.4 Q29 9.5 29 11.8 V22.2 Q29 24.5 27 25.6 L18 30.8 Q16 32 14 30.8 L5 25.6 Q3 24.5 3 22.2 V11.8 Q3 9.5 5 8.4 Z"></path>
+    </clipPath>
+  </defs>
+  <path d="M14 3.2 Q16 2 18 3.2 L27 8.4 Q29 9.5 29 11.8 V22.2 Q29 24.5 27 25.6 L18 30.8 Q16 32 14 30.8 L5 25.6 Q3 24.5 3 22.2 V11.8 Q3 9.5 5 8.4 Z" fill="#FFFFFF"></path>
+  <g clip-path="url(#hex-clip)">
+    <circle cx="16" cy="13" r="3" fill="#2950E3"></circle>
+    <path d="M10 24 C10 20 12.5 17.5 16 17.5 C19.5 17.5 22 20 22 24 Z" fill="#2950E3"></path>
+  </g>
+  <text x="38" y="24.5" font-family="Geist, ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="600" letter-spacing="-0.6" fill="#FFFFFF">JobHub</text>
+</svg>

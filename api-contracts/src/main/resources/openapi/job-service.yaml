@@ -1,0 +1,778 @@
+openapi: 3.0.3
+info:
+  title: JobHub — Job Service
+  version: 1.0.0
+  description: |
+    REST API for browsing and searching job postings, bookmarking jobs, and
+    managing saved search filter presets.
+
+servers:
+  - url: /
+    description: Path-prefixed via Vite dev proxy (`/jobs → localhost:8081`) and nginx
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Jobs
+    description: Browse and search job postings
+  - name: Saved Jobs
+    description: Bookmark jobs per authenticated user
+  - name: Saved Filters
+    description: Persist named search filter presets per authenticated user (max 5)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    # ── Existing response schemas ──────────────────────────────────────────────
+
+    JobPostResponse:
+      x-implementation-status: existing
+      type: object
+      required: [id, title, url, firstSeenAt, lastSeenAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: Canonical URL of the job posting
+        description:
+          type: string
+          description: Full job description (HTML or plain text)
+        location:
+          type: string
+          description: Location of the posting, e.g. "Barcelona, Spain" or "Remote"
+        firstSeenAt:
+          type: string
+          format: date-time
+          description: When the crawler first discovered this posting; used as "posted date"
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: Last time the crawler confirmed the posting was still live
+
+        company:
+          description: Company entity attached to the job post.
+          allOf:
+            - $ref: '#/components/schemas/CompanyInfo'
+
+        compensationMin:
+          type: integer
+          format: int32
+          description: Minimum annual compensation (local currency units)
+
+        compensationMax:
+          type: integer
+          format: int32
+          description: Maximum annual compensation (local currency units)
+
+        language:
+          type: array
+          items:
+            type: string
+          description: "Languages used in this role (e.g. [\"English\", \"Spanish\"])"
+
+        employmentType:
+          type: string
+          enum: [full-time, part-time, contract, freelance, internship]
+          description: Employment type
+
+        source:
+          type: string
+          description: "Source board or ATS name, e.g. Greenhouse, Lever, LinkedIn"
+
+        requirements:
+          type: array
+          items:
+            type: string
+          description: Structured list of role requirements
+
+    CompanyInfo:
+      description: Company entity attached to a job post.
+      type: object
+      properties:
+        name:
+          type: string
+        logoUrl:
+          type: string
+          format: uri
+
+    # ── Saved Jobs ───────────────────────────────────────────────────────────
+
+    SavedJobResponse:
+      description: A saved-job bookmark entry. The job ID is available via job.id.
+      type: object
+      required: [savedAt, job]
+      properties:
+        savedAt:
+          type: string
+          format: date-time
+          description: When the user bookmarked this posting
+        job:
+          $ref: '#/components/schemas/JobPostResponse'
+
+    SavedJobPage:
+      description: Paginated result wrapper for saved-job list responses.
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedJobResponse'
+          description: Saved job entries for the requested page
+        page:
+          type: integer
+          description: Zero-based index of the returned page
+        size:
+          type: integer
+          description: Number of items per page as requested
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of bookmarks for this user
+        totalPages:
+          type: integer
+          description: "Total number of pages: ceil(totalElements / size)"
+
+    # ── Saved Filters ──────────────────────────────────────────────────────────
+
+    SavedFilterRequest:
+      description: Payload for creating a named filter preset. Both fields are required.
+      type: object
+      required: [name, filters]
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          description: Human-readable label for the preset
+        filters:
+          $ref: '#/components/schemas/FilterValues'
+
+    SavedFilterPatchRequest:
+      description: Partial update payload for a saved filter preset. Supply only the fields to change.
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          description: New label for the preset
+        filters:
+          $ref: '#/components/schemas/FilterValues'
+
+    SavedFilterResponse:
+      description: A saved filter preset belonging to the authenticated user.
+      type: object
+      required: [id, name, filters, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the preset
+        name:
+          type: string
+          description: Human-readable label for the preset
+        filters:
+          $ref: '#/components/schemas/FilterValues'
+        createdAt:
+          type: string
+          format: date-time
+          description: When the preset was first saved
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the preset was last modified
+
+    FilterValues:
+      description: Serialised job-search filter state. Field names mirror the query parameters of GET /jobs.
+      type: object
+      properties:
+        keyword:
+          type: string
+        location:
+          type: array
+          items:
+            type: string
+          description: "Location strings — country, city+country, or the special value 'Remote'"
+        language:
+          type: array
+          items:
+            type: string
+          description: "Working languages (e.g. [\"English\", \"Spanish\"])"
+        company:
+          type: array
+          items:
+            type: string
+          description: Company names
+        employmentType:
+          type: array
+          items:
+            type: string
+            enum: [full-time, part-time, contract, freelance, internship]
+          description: One or more employment types (multi-select in the UI)
+        compensationMin:
+          type: integer
+          description: Minimum annual compensation (local currency units, inclusive)
+        compensationMax:
+          type: integer
+          description: Maximum annual compensation (local currency units, inclusive)
+        postedWithin:
+          type: string
+          enum: [today, 3d, week, month]
+        sort:
+          type: string
+          enum: [newest, oldest, salary-desc, salary-asc]
+          default: newest
+
+    # ── Filter facets ────────────────────────────────────────────────────────
+
+    FacetValue:
+      description: A distinct filter value and how many postings carry it across the whole table.
+      type: object
+      required: [value, count]
+      properties:
+        value:
+          type: string
+        count:
+          type: integer
+          format: int64
+          description: Number of postings with this value across the entire table.
+
+    JobFacets:
+      description: |
+        Distinct filter values across the ENTIRE job-post table (not just the current
+        result page), used to populate the search filter controls. Counts are table-wide
+        and independent of any active filter.
+      type: object
+      required: [companies, locations, languages, employmentTypes]
+      properties:
+        companies:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetValue'
+          description: Distinct company names, alphabetically ordered.
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetValue'
+          description: Distinct countries, plus the special value "Remote" when any remote postings exist.
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetValue'
+          description: Distinct working languages across all postings.
+        employmentTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetValue'
+          description: Distinct employment types across all postings.
+        compensationMin:
+          type: integer
+          nullable: true
+          description: Lowest compensationMin across all postings (null when none are priced).
+        compensationMax:
+          type: integer
+          nullable: true
+          description: Highest compensationMax across all postings (null when none are priced).
+
+    # ── Pagination wrapper ────────────────────────────────────────────────────
+
+    JobSearchPage:
+      type: object
+      description: Paginated result wrapper for job search responses.
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobPostResponse'
+          description: Job postings for the requested page
+        page:
+          type: integer
+          description: Zero-based index of the returned page
+        size:
+          type: integer
+          description: Number of items per page as requested
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of results matching the query across all pages
+        totalPages:
+          type: integer
+          description: "Total number of pages: ceil(totalElements / size)"
+
+    # ── Error ──────────────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error title
+        message:
+          type: string
+          description: Detail explaining what went wrong
+
+paths:
+
+  # ── Job search ──────────────────────────────────────────────────────────────
+
+  /jobs:
+    get:
+      tags: [Jobs]
+      operationId: searchJobs
+      summary: Search and list job postings
+      x-implementation-status: existing
+      description: |
+        Returns a paginated list of job postings matching the supplied filters.
+
+        All filter parameters are optional and combinable. When no results match
+        the query, the response is HTTP 200 with an empty `content` array.
+
+        Pagination is zero-based (`page=0` is the first page). Use `totalPages`
+        from the response body to determine when to stop fetching.
+      security: []
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+          description: Full-text search across title and description
+        - name: location
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Filter by one or more locations. Each value is a city+country string
+            (`"Barcelona, Spain"`), a country alone (`"Spain"`), or the special
+            value `"Remote"`. Repeated: `?location=Spain&location=Remote`.
+        - name: language
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Filter by one or more working languages (e.g. `"English"`).
+            Repeated: `?language=English&language=Spanish`.
+        - name: company
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Filter by one or more company names.
+            Repeated: `?company=Google&company=Stripe`.
+        - name: employmentType
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [full-time, part-time, contract, freelance, internship]
+          description: |
+            Filter by one or more employment types.
+            Repeated: `?employmentType=full-time&employmentType=contract`.
+        - name: compensationMin
+          in: query
+          schema:
+            type: integer
+          description: Minimum annual compensation (local currency units, inclusive)
+        - name: compensationMax
+          in: query
+          schema:
+            type: integer
+          description: Maximum annual compensation (local currency units, inclusive)
+        - name: postedWithin
+          in: query
+          schema:
+            type: string
+            enum: [today, 3d, week, month]
+          description: |
+            Filter by how recently the posting was first discovered. Derived from
+            `firstSeenAt`: `today` = last 24 h, `3d` = last 3 days, `week` = last 7 days,
+            `month` = last 30 days.
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, oldest, salary-desc, salary-asc]
+            default: newest
+          description: |
+            Sort order. `newest` / `oldest` sort by `firstSeenAt`. `salary-desc` /
+            `salary-asc` sort by `compensationMin`; postings without compensation
+            data are ranked last.
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based page index
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+
+      responses:
+        '200':
+          description: Paginated job list. `content` is empty when no postings match the filters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSearchPage'
+        '400':
+          description: |
+            Invalid query parameters — e.g. `page` is negative, `size` exceeds 100,
+            or an enum parameter contains an unrecognised value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/{id}:
+    get:
+      tags: [Jobs]
+      operationId: getJob
+      summary: Get a single job posting by ID
+      x-implementation-status: existing
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job posting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobPostResponse'
+        '404':
+          description: Job posting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Filter facets ─────────────────────────────────────────────────────────
+
+  /jobs/facets:
+    get:
+      tags: [Jobs]
+      operationId: getJobFacets
+      summary: Distinct filter values across the whole job table
+      x-implementation-status: new
+      description: |
+        Returns the full set of companies, locations, languages and employment types
+        present across ALL job postings, plus the overall compensation range. Used to
+        populate the search filter dropdowns so they are not limited to the postings on
+        the current result page.
+      security: []
+      responses:
+        '200':
+          description: Filter facets across the whole table
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobFacets'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Saved Jobs ──────────────────────────────────────────────────────────────
+
+  /jobs/saved:
+    get:
+      tags: [Saved Jobs]
+      operationId: listSavedJobs
+      summary: List the authenticated user's saved jobs
+      description: |
+        Returns a paginated list of job bookmarks for the authenticated user,
+        ordered by most recently saved first. Each entry embeds the full job posting.
+        The authenticated user is derived from the Bearer token.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based page index
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+      responses:
+        '200':
+          description: Paginated saved job list, ordered by most recently saved first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedJobPage'
+        '400':
+          description: Invalid pagination parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/saved/{jobId}:
+    put:
+      tags: [Saved Jobs]
+      operationId: saveJob
+      summary: Bookmark a job
+      description: |
+        Adds the specified job to the authenticated user's bookmarks.
+        Idempotent — if the job is already bookmarked, returns 204 without error.
+        The authenticated user is derived from the Bearer token.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the job posting to bookmark
+      responses:
+        '204':
+          description: Job bookmarked (or was already bookmarked)
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Job posting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Saved Jobs]
+      operationId: unsaveJob
+      summary: Remove a job bookmark
+      description: |
+        Removes the specified job from the authenticated user's bookmarks.
+        Idempotent — if the job was not bookmarked, returns 204 without error.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the job posting to unbookmark
+      responses:
+        '204':
+          description: Bookmark removed (or was not bookmarked)
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Saved Filters ────────────────────────────────────────────────────────────
+
+  /jobs/filters/saved:
+    get:
+      tags: [Saved Filters]
+      operationId: listSavedFilters
+      summary: List the authenticated user's saved search filter presets
+      description: |
+        Returns all saved filter presets for the authenticated user (max 5).
+        An empty array is returned when no presets have been saved yet.
+        The authenticated user is derived from the Bearer token.
+      responses:
+        '200':
+          description: Saved filter presets (max 5 items)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SavedFilterResponse'
+                maxItems: 5
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Saved Filters]
+      operationId: createSavedFilter
+      summary: Create a named filter preset
+      description: |
+        Saves the supplied filter values as a named preset for the authenticated user.
+        Returns 400 if the user already has 5 presets — the limit must be freed before
+        creating a new one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFilterRequest'
+      responses:
+        '201':
+          description: Filter preset created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilterResponse'
+        '400':
+          description: Validation error (missing required field, name too long) or preset limit of 5 reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/filters/saved/{id}:
+    delete:
+      tags: [Saved Filters]
+      operationId: deleteSavedFilter
+      summary: Delete a saved filter preset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the filter preset to delete
+      responses:
+        '204':
+          description: Preset deleted
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Filter preset not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Saved Filters]
+      operationId: updateSavedFilter
+      summary: Rename or update a saved filter preset
+      description: |
+        Partially updates a saved filter preset. Supply only the fields to change —
+        `name` to rename the preset, `filters` to replace the stored filter values, or both.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the filter preset to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFilterPatchRequest'
+      responses:
+        '200':
+          description: Preset updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilterResponse'
+        '400':
+          description: Validation error (name too long, empty patch body)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Filter preset not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

@@ -1,0 +1,11 @@
+FROM docker.io/library/eclipse-temurin:21-jre-alpine
+WORKDIR /work/
+RUN chown 1001 /work \
+    && chmod "g+rwX" /work \
+    && chown 1001:root /work
+COPY --chown=1001:root target/quarkus-app/lib/ ./lib/
+COPY --chown=1001:root target/quarkus-app/*.jar ./
+COPY --chown=1001:root target/quarkus-app/app/ ./app/
+COPY --chown=1001:root target/quarkus-app/quarkus/ ./quarkus/
+USER 1001
+CMD ["java", "-jar", "quarkus-run.jar"]

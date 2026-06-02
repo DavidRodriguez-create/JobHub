@@ -1,0 +1,215 @@
+/* ============================================================
+   JobHub — Colors & Type
+   Tokens used across the design system and UI kits.
+   ============================================================ */
+
+/* ---------- Webfonts (Google Fonts) ---------- */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap");
+
+:root {
+  /* ============================================================
+     COLORS — Brand
+     ============================================================ */
+  --color-brand-50:  #EEF2FE;
+  --color-brand-100: #DCE3FD;
+  --color-brand-200: #B8C7FB;
+  --color-brand-300: #8FA4F7;
+  --color-brand-400: #5F7BF0;
+  --color-brand-500: #3D5DE8;  /* hover / hairline accent */
+  --color-brand-600: #2950E3;  /* PRIMARY — buttons, links, focus */
+  --color-brand-700: #1F3FBE;
+  --color-brand-800: #1A3399;
+  --color-brand-900: #172A77;
+
+  /* ============================================================
+     COLORS — Neutrals (warm-ink scale)
+     Slightly warm so the system reads as paper, not screen.
+     ============================================================ */
+  --color-bg:        #FAFAF7;  /* app background — warm off-white */
+  --color-surface:   #FFFFFF;  /* cards, panels */
+  --color-surface-2: #F4F4EF;  /* hovered rows, subtle wells */
+  --color-surface-3: #ECECE5;  /* pressed, selected */
+
+  --color-ink:       #0B1220;  /* primary text, ink black */
+  --color-ink-2:     #2B3344;  /* secondary text */
+  --color-ink-3:     #5A6378;  /* tertiary text, captions */
+  --color-ink-4:     #8A93A6;  /* placeholder, disabled text */
+
+  --color-border:    #E6E6DE;  /* default hairline */
+  --color-border-2:  #D6D6CC;  /* stronger borders */
+  --color-border-strong: #B8B8AE;
+
+  /* ============================================================
+     COLORS — Semantic / Status
+     Tuned for application states (Applied, Interview, Offer, etc.)
+     ============================================================ */
+  --color-info:      #2950E3;  --color-info-bg:    #EEF2FE;  --color-info-border:    #C7D2FB;
+  --color-success:   #1B7F4D;  --color-success-bg: #E6F4EC;  --color-success-border: #B6DDC6;
+  --color-warning:   #B26A00;  --color-warning-bg: #FBF1DE;  --color-warning-border: #EBD5A8;
+  --color-danger:    #B0341F;  --color-danger-bg:  #FBEAE5;  --color-danger-border:  #ECC2B7;
+  --color-neutral:   #5A6378;  --color-neutral-bg: #ECECE5;  --color-neutral-border: #D6D6CC;
+
+  /* Application status mappings (semantic alias) */
+  --status-saved-fg:     var(--color-neutral);   --status-saved-bg:     var(--color-neutral-bg);   --status-saved-bd:     var(--color-neutral-border);
+  --status-applied-fg:   var(--color-info);      --status-applied-bg:   var(--color-info-bg);      --status-applied-bd:   var(--color-info-border);
+  --status-screening-fg: #6B3FCB;                --status-screening-bg: #F0EAFB;                   --status-screening-bd: #D7C5F2;
+  --status-interview-fg: var(--color-warning);   --status-interview-bg: var(--color-warning-bg);   --status-interview-bd: var(--color-warning-border);
+  --status-offer-fg:     var(--color-success);   --status-offer-bg:     var(--color-success-bg);   --status-offer-bd:     var(--color-success-border);
+  --status-rejected-fg:  var(--color-danger);    --status-rejected-bg:  var(--color-danger-bg);    --status-rejected-bd:  var(--color-danger-border);
+  --status-ghosted-fg:   var(--color-ink-3);     --status-ghosted-bg:   var(--color-surface-2);    --status-ghosted-bd:   var(--color-border-2);
+
+  /* ============================================================
+     TYPOGRAPHY — Stacks
+     ============================================================ */
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* ============================================================
+     TYPOGRAPHY — Scale (rem-based, balanced density)
+     base = 14px on app surfaces, 16px on marketing
+     ============================================================ */
+  --fs-12:  0.75rem;    /* 12px — meta, captions */
+  --fs-13:  0.8125rem;  /* 13px — labels, tags */
+  --fs-14:  0.875rem;   /* 14px — body (app default) */
+  --fs-16:  1rem;       /* 16px — body large */
+  --fs-18:  1.125rem;   /* 18px — lead */
+  --fs-20:  1.25rem;    /* 20px — h4 */
+  --fs-24:  1.5rem;     /* 24px — h3 */
+  --fs-30:  1.875rem;   /* 30px — h2 */
+  --fs-36:  2.25rem;    /* 36px — h1 */
+  --fs-48:  3rem;       /* 48px — display */
+  --fs-60:  3.75rem;    /* 60px — display xl */
+
+  --lh-tight:  1.15;
+  --lh-snug:   1.3;
+  --lh-normal: 1.5;
+  --lh-loose:  1.65;
+
+  --tracking-tight:  -0.022em;
+  --tracking-snug:   -0.012em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+  --tracking-caps:   0.08em;
+
+  /* ============================================================
+     SPACING (4px grid)
+     ============================================================ */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* ============================================================
+     RADII
+     ============================================================ */
+  --radius-xs:  4px;
+  --radius-sm:  6px;   /* inputs, small buttons */
+  --radius-md:  8px;   /* default buttons, chips */
+  --radius-lg:  12px;  /* cards */
+  --radius-xl:  16px;  /* large panels */
+  --radius-pill: 9999px;
+
+  /* ============================================================
+     SHADOWS / ELEVATION
+     Restrained system. Most surfaces use hairlines, not shadows.
+     ============================================================ */
+  --shadow-xs: 0 1px 0 rgba(11, 18, 32, 0.04);
+  --shadow-sm: 0 1px 2px rgba(11, 18, 32, 0.06), 0 1px 1px rgba(11, 18, 32, 0.04);
+  --shadow-md: 0 4px 12px rgba(11, 18, 32, 0.08), 0 1px 2px rgba(11, 18, 32, 0.05);
+  --shadow-lg: 0 12px 32px rgba(11, 18, 32, 0.10), 0 2px 6px rgba(11, 18, 32, 0.06);
+  --shadow-pop: 0 16px 40px rgba(11, 18, 32, 0.14), 0 4px 12px rgba(11, 18, 32, 0.08);
+
+  --ring-focus: 0 0 0 3px rgba(41, 80, 227, 0.25);
+  --ring-danger: 0 0 0 3px rgba(176, 52, 31, 0.25);
+
+  /* ============================================================
+     MOTION
+     ============================================================ */
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 260ms;
+
+  /* ============================================================
+     LAYOUT
+     ============================================================ */
+  --container-narrow: 720px;
+  --container-base:   1080px;
+  --container-wide:   1280px;
+  --sidebar-w:        248px;
+  --topbar-h:         56px;
+}
+
+/* ============================================================
+   Semantic element styles
+   Apply globally so headings, body text, code etc. inherit.
+   ============================================================ */
+html, body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  line-height: var(--lh-normal);
+  letter-spacing: var(--tracking-snug);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+  text-wrap: balance;
+}
+h1 { font-size: var(--fs-36); font-weight: 600; }
+h2 { font-size: var(--fs-30); font-weight: 600; }
+h3 { font-size: var(--fs-24); font-weight: 600; letter-spacing: var(--tracking-snug); }
+h4 { font-size: var(--fs-20); font-weight: 600; letter-spacing: var(--tracking-snug); }
+h5 { font-size: var(--fs-16); font-weight: 600; letter-spacing: var(--tracking-snug); }
+h6 { font-size: var(--fs-13); font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-ink-3); }
+
+p { margin: 0; color: var(--color-ink-2); line-height: var(--lh-normal); text-wrap: pretty; }
+
+a { color: var(--color-brand-600); text-decoration: none; }
+a:hover { color: var(--color-brand-700); text-decoration: underline; text-underline-offset: 2px; }
+
+small { font-size: var(--fs-12); color: var(--color-ink-3); }
+
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+code {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  color: var(--color-ink);
+}
+
+::selection { background: var(--color-brand-100); color: var(--color-ink); }
+
+/* Utility classes used across UI kit */
+.eyebrow {
+  font-size: var(--fs-12);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  font-weight: 600;
+  color: var(--color-ink-3);
+}
+.mono { font-family: var(--font-mono); }
+.text-secondary { color: var(--color-ink-2); }
+.text-tertiary  { color: var(--color-ink-3); }
+.hairline { border-top: 1px solid var(--color-border); }

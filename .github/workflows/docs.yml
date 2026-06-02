@@ -1,0 +1,52 @@
+# Build the MkDocs Material site and publish it to GitHub Pages.
+# Runs on the PUBLIC mirror (where Pages is free). The OpenAPI hook reads the
+# specs from api-contracts/ at build time, so the API reference is always current.
+#
+# One-time setup on the public repo:
+#   Settings → Pages → Source = "Deploy from a branch" → branch "gh-pages" / root.
+#   gh-deploy creates the gh-pages branch and writes a .nojekyll file, so GitHub
+#   serves the pre-built site as-is (no Jekyll). IMPORTANT: point Pages at "gh-pages",
+#   NOT "main" — selecting main runs the Jekyll builder and fails (no docs/ to build).
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      - 'api-contracts/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # gh-deploy pushes to the gh-pages branch
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    # Only publish from the PUBLIC mirror. This workflow is synced into the private
+    # repo too, but Pages is unavailable for private repos on the free plan, so it's
+    # a no-op there.
+    if: github.repository == 'DavidRodriguez-create/JobHub'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # gh-deploy needs history for the gh-pages branch
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install docs toolchain
+        run: pip install -r requirements-docs.txt
+
+      - name: Build & deploy to GitHub Pages
+        run: mkdocs gh-deploy --force --no-history

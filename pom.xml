@@ -1,0 +1,141 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.davidcreate.jobhub</groupId>
+    <artifactId>jobhub-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <properties>
+        <compiler-plugin.version>3.13.0</compiler-plugin.version>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        
+        <quarkus.platform.version>3.35.2</quarkus.platform.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.quarkus.platform</groupId>
+                <artifactId>quarkus-bom</artifactId>
+                <version>${quarkus.platform.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+            <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>1.18.46</version>
+                <scope>provided</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <modules>
+        <module>api-contracts</module>
+        <module>crawler-service</module>
+        <module>job-service</module>
+        <module>auth-service</module>
+        <module>application-service</module>
+    </modules>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Generates JWT keys at build time so none are committed to git:
+                       • main:  one SHARED dev keypair (reactor-root .dev-keys/) copied to
+                                target/classes — keeps local cross-service auth consistent.
+                       • test:  a FRESH ephemeral keypair per module into target/test-classes —
+                                each @QuarkusTest is isolated and mints its own tokens.
+                     Services opt in by declaring this plugin (job/auth/application). -->
+                <plugin>
+                    <groupId>org.codehaus.gmavenplus</groupId>
+                    <artifactId>gmavenplus-plugin</artifactId>
+                    <version>4.0.1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.apache.groovy</groupId>
+                            <artifactId>groovy</artifactId>
+                            <version>4.0.22</version>
+                            <scope>runtime</scope>
+                        </dependency>
+                    </dependencies>
+                    <configuration>
+                        <scripts>
+                            <script><![CDATA[
+import java.security.KeyPairGenerator
+import java.security.SecureRandom
+import java.util.Base64
+import java.nio.file.*
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING
+
+def pem = { String type, byte[] der ->
+    String b64 = Base64.encoder.encodeToString(der)
+    def sb = new StringBuilder("-----BEGIN ${type}-----\n")
+    for (int i = 0; i < b64.length(); i += 64)
+        sb << b64.substring(i, Math.min(i + 64, b64.length())) << '\n'
+    sb << "-----END ${type}-----\n"
+    sb.toString()
+}
+def genPair = { def g = KeyPairGenerator.getInstance('RSA'); g.initialize(2048, new SecureRandom()); g.generateKeyPair() }
+
+if (mojoExecution.executionId == 'gen-main-keys') {
+    // Shared dev keypair: generate once at the reactor root, reuse for every module.
+    def root = Paths.get(session.executionRootDirectory, '.dev-keys')
+    Files.createDirectories(root)
+    def rPriv = root.resolve('privateKey.pem'); def rPub = root.resolve('publicKey.pem')
+    if (!Files.exists(rPriv) || !Files.exists(rPub)) {
+        def kp = genPair()
+        Files.write(rPriv, pem('PRIVATE KEY', kp.private.encoded).bytes)
+        Files.write(rPub, pem('PUBLIC KEY', kp.public.encoded).bytes)
+        log.info('[jwt-keys] generated shared dev keypair at ' + root)
+    }
+    def dst = Paths.get(project.build.outputDirectory, 'META-INF', 'keys'); Files.createDirectories(dst)
+    Files.copy(rPub, dst.resolve('publicKey.pem'), REPLACE_EXISTING)
+    if (project.artifactId == 'auth-service') Files.copy(rPriv, dst.resolve('privateKey.pem'), REPLACE_EXISTING)
+    log.info('[jwt-keys] main keys -> ' + dst)
+} else {
+    // Fresh ephemeral keypair per module for tests (isolated, mints its own tokens).
+    def dst = Paths.get(project.build.testOutputDirectory, 'META-INF', 'keys'); Files.createDirectories(dst)
+    def kp = genPair()
+    Files.write(dst.resolve('privateKey.pem'), pem('PRIVATE KEY', kp.private.encoded).bytes)
+    Files.write(dst.resolve('publicKey.pem'), pem('PUBLIC KEY', kp.public.encoded).bytes)
+    log.info('[jwt-keys] test keys -> ' + dst)
+}
+                            ]]></script>
+                        </scripts>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>gen-main-keys</id>
+                            <phase>process-resources</phase>
+                            <goals><goal>execute</goal></goals>
+                        </execution>
+                        <execution>
+                            <id>gen-test-keys</id>
+                            <phase>process-test-resources</phase>
+                            <goals><goal>execute</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>native</id>
+            <activation>
+                <property>
+                    <name>native</name>
+                </property>
+            </activation>
+            <properties>
+                <quarkus.package.type>native</quarkus.package.type>
+            </properties>
+        </profile>
+    </profiles>
+</project>
