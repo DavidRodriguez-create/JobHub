@@ -40,22 +40,112 @@ export async function updateCurrentUser({ firstName, lastName }) {
   return data; // AccountResponse
 }
 
-export async function changePassword({ currentPassword, newPassword }) {
+export async function changePassword({ currentPassword, newPassword, totpCode }) {
+  const body = { currentPassword, newPassword };
+  if (totpCode) body.totpCode = totpCode;
   await request("/auth/account/change-password", {
     method: "POST",
     auth: true,
-    body: { currentPassword, newPassword },
+    body,
   });
+}
+
+/* ── Two-factor authentication (ADR 0012) ── */
+
+export async function setupTwoFactor() {
+  const { data } = await request("/auth/account/2fa/setup", {
+    method: "POST",
+    auth: true,
+  });
+  return data; // { otpauthUri, setupKey }
+}
+
+export async function verifyTwoFactorSetup({ totpCode }) {
+  const { data } = await request("/auth/account/2fa/verify-setup", {
+    method: "POST",
+    auth: true,
+    body: { totpCode },
+  });
+  return data; // { backupCodes: string[] }
+}
+
+export async function disableTwoFactor({ totpCode }) {
+  await request("/auth/account/2fa/disable", {
+    method: "POST",
+    auth: true,
+    body: { totpCode },
+  });
+}
+
+export async function loginTwoFactor({ twoFactorToken, totpCode }) {
+  const { data } = await request("/auth/login/2fa", {
+    method: "POST",
+    body: { twoFactorToken, totpCode },
+  });
+  if (data && data.token) setToken(data.token);
+  return data;
 }
 
 /* ── Email verification ── */
 
-export async function verifyEmail(token) {
-  await request("/auth/account/verify-email", { method: "POST", body: { token } });
+// Sends the 6-digit code issued to the user's email address.
+// Contract: POST /auth/account/verify-email { email, code }
+export async function verifyEmail({ email, code }) {
+  await request("/auth/account/verify-email", { method: "POST", body: { email, code } });
 }
 
 export async function resendVerification(email) {
   await request("/auth/account/resend-verification", { method: "POST", body: { email } });
+}
+
+/* ── Apply profile answer bank (ADR 0022, story #336) ── */
+
+// GET always returns 200, all-null when never saved. Never 404.
+export async function getApplyProfile() {
+  const { data } = await request("/auth/account/apply-profile", { auth: true });
+  return data; // ApplyProfileResponse
+}
+
+// PUT is a full-replace upsert: omitted/null fields clear that answer.
+export async function saveApplyProfile(body) {
+  const { data } = await request("/auth/account/apply-profile", {
+    method: "PUT",
+    auth: true,
+    body,
+  });
+  return data; // ApplyProfileResponse
+}
+
+/* ── Social login (OAuth, ADR 0027, story #459) ── */
+
+// GET /oauth/{provider}/start — returns { authorizationUrl }, the provider's consent-screen
+// URL the UI redirects the browser to. provider: "google" | "github".
+export async function startOAuth(provider) {
+  const { data } = await request(`/auth/oauth/${provider}/start`);
+  return data; // OAuthAuthorizationResponse { authorizationUrl }
+}
+
+// POST /oauth/{provider}/callback — relays the code+state the provider returned to the UI's
+// callback route. Returns the SAME LoginResponse shape as login()/loginTwoFactor() (may be a
+// 2FA challenge: twoFactorRequired + twoFactorToken, token/account/expiresIn null).
+export async function completeOAuthLogin({ provider, code, state }) {
+  const { data } = await request(`/auth/oauth/${provider}/callback`, {
+    method: "POST",
+    body: { code, state },
+  });
+  if (data && data.token) setToken(data.token);
+  return data;
+}
+
+/* ── OAuth provider availability (ADR 0028, story #506) ── */
+
+// GET /oauth/providers — unauthenticated: it gates the login/signup screens, called
+// before any token exists. Reports, per provider, whether this deployment holds usable
+// credentials for it (configuration only, never a live health probe — ADR 0028 Decision
+// 2). A provider reported unavailable must have its button hidden, never disabled.
+export async function getOAuthProviders() {
+  const { data } = await request("/auth/oauth/providers");
+  return data; // OAuthProvidersResponse { providers: [{ provider, available }] }
 }
 
 /* ── Destructive-action verification (two-factor) ── */

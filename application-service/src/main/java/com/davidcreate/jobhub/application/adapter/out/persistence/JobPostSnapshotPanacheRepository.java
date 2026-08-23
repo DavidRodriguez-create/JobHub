@@ -7,6 +7,7 @@ import com.davidcreate.jobhub.application.domain.entity.JobPostSnapshot;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
+import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
@@ -16,6 +17,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JobPostSnapshotPanacheRepository
         implements JobPostSnapshotRepository, PanacheRepositoryBase<JobPostSnapshotEntity, UUID> {
+
+    private static final Logger LOG = Logger.getLogger(JobPostSnapshotPanacheRepository.class);
 
     private final JobPostSnapshotMapper mapper;
 
@@ -36,6 +39,7 @@ public class JobPostSnapshotPanacheRepository
             entity.snapshottedAt = OffsetDateTime.now();
         }
         persistAndFlush(entity);
+        LOG.infof("INSERT applications.job_post_snapshot id=%s contentHash=%s", entity.id, entity.contentHash);
         return mapper.toDomain(entity);
     }
 }

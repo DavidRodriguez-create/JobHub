@@ -10,5 +10,10 @@ public record JobPostRemoteResponse(
         String title,
         String url,
         String description,
-        String location) {
+        String location,
+        CompanyInfo company) {
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record CompanyInfo(String name, String logoUrl) {
+    }
 }

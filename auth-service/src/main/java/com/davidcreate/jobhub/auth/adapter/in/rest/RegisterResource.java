@@ -5,6 +5,7 @@ import com.davidcreate.jobhub.auth.application.port.in.RegisterUserCommand;
 import com.davidcreate.jobhub.auth.application.port.in.RegisterUserUseCase;
 import com.davidcreate.jobhub.auth.contract.api.RegisterApi;
 import com.davidcreate.jobhub.auth.contract.model.RegisterRequest;
+import com.davidcreate.jobhub.auth.contract.model.RegisterResponse;
 import com.davidcreate.jobhub.auth.domain.entity.User;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.Path;
@@ -23,7 +24,9 @@ public class RegisterResource implements RegisterApi {
         User user = registerUserUseCase.register(new RegisterUserCommand(
                 req.getFirstName(), req.getLastName(), req.getEmail(), req.getPassword()));
         return Response.status(Response.Status.CREATED)
-                .entity(AccountResponseMapper.toAccount(user))
+                .entity(new RegisterResponse()
+                        .account(AccountResponseMapper.toAccount(user))
+                        .verificationRequired(true))
                 .build();
     }
 }

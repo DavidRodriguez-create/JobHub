@@ -1,0 +1,121 @@
+# One GitHub Release per merge into main.
+#
+# The version bump is NOT decided here: it is decided on the pull request, by the
+# compulsory release:<patch|minor|major> label enforced by `release-label.yml`.
+# After the merge this workflow reads that same label off the merged PR, bumps the
+# latest vX.Y.Z tag accordingly, and cuts the tag + release.
+#
+# The public mirror reuses this number: `sync-to-public.yml` tags its snapshot
+# commit with the private repo's current version, so a given vX.Y.Z means the same
+# tree in both repos.
+#
+# Pushes to main that did not come from a pull request (e.g. a merge of a diverged
+# main) have no label to read, so they are skipped rather than failed.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write      # create tags and releases
+  pull-requests: read  # read the merged PR's labels
+
+# Serialise: two merges landing together must not both read the same latest tag
+# and try to cut the same version.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history + tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the previous vX.Y.Z tag is the base of the bump
+
+      - name: Resolve the merged PR and its release label
+        id: label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PR="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
+                  --jq '.[0].number // empty')"
+          if [ -z "$PR" ]; then
+            echo "::notice::${GITHUB_SHA} has no associated pull request, nothing to release."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          MATCHED="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/labels" \
+                       --jq '.[].name | select(test("^release:(patch|minor|major)$"))')"
+          COUNT="$(grep -c . <<< "$MATCHED" || true)"
+          if [ "$COUNT" -ne 1 ]; then
+            echo "::error::PR #${PR} carries ${COUNT} release labels; exactly one is required." \
+                 "The 'release-label' check should have blocked this merge: is it a required" \
+                 "status check on main?" >&2
+            exit 1
+          fi
+
+          echo "pr=${PR}"               >> "$GITHUB_OUTPUT"
+          echo "bump=${MATCHED#release:}" >> "$GITHUB_OUTPUT"
+          echo "skip=false"             >> "$GITHUB_OUTPUT"
+          echo "PR #${PR} → ${MATCHED#release:} bump."
+
+      - name: Compute the next version
+        id: version
+        if: steps.label.outputs.skip == 'false'
+        env:
+          BUMP: ${{ steps.label.outputs.bump }}
+        run: |
+          set -euo pipefail
+          # Highest existing release tag; v0.0.0 when the repo has never released.
+          PREV="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1)"
+          PREV="${PREV:-v0.0.0}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${PREV#v}"
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+            *) echo "::error::unknown bump '${BUMP}'" >&2; exit 1 ;;
+          esac
+          NEXT="v${MAJOR}.${MINOR}.${PATCH}"
+
+          if git rev-parse -q --verify "refs/tags/${NEXT}" >/dev/null; then
+            echo "::error::tag ${NEXT} already exists: refusing to overwrite a release." >&2
+            exit 1
+          fi
+
+          echo "prev=${PREV}" >> "$GITHUB_OUTPUT"
+          echo "next=${NEXT}" >> "$GITHUB_OUTPUT"
+          echo "${PREV} + ${BUMP} → ${NEXT}"
+
+      - name: Create the release
+        if: steps.label.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT: ${{ steps.version.outputs.next }}
+          PREV: ${{ steps.version.outputs.prev }}
+          BUMP: ${{ steps.label.outputs.bump }}
+          PR: ${{ steps.label.outputs.pr }}
+        run: |
+          set -euo pipefail
+          # `gh release create` creates the tag at --target as part of the release.
+          NOTES_ARGS=(--generate-notes)
+          if git rev-parse -q --verify "refs/tags/${PREV}" >/dev/null; then
+            NOTES_ARGS+=(--notes-start-tag "${PREV}")
+          fi
+          gh release create "$NEXT" \
+            --target "$GITHUB_SHA" \
+            --title "$NEXT" \
+            "${NOTES_ARGS[@]}"
+          echo "Released ${NEXT} (${BUMP} bump from ${PREV}, PR #${PR})." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summarise a skipped release
+        if: steps.label.outputs.skip == 'true'
+        run: echo "No pull request for this push, no release cut." >> "$GITHUB_STEP_SUMMARY"

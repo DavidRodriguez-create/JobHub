@@ -109,6 +109,7 @@ public final class ApplicationResponseMapper {
         return new JobSummary()
                 .title(job.title())
                 .company(job.company())
+                .companyLogoUrl(toUri(job.companyLogoUrl()))
                 .location(job.location())
                 .url(toUri(job.url()));
     }

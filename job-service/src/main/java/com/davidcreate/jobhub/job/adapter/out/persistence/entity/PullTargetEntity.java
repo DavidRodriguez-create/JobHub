@@ -25,4 +25,15 @@ public class PullTargetEntity extends PanacheEntityBase {
 
     @Column(name = "company_logo_url")
     public String companyLogoUrl;
+
+    // Story #428 (ADR 0023 D2): read-only mirror of the FK column, kept in sync by the
+    // @ManyToOne relation below; writes go through a targeted bulk UPDATE
+    // (PullTargetPanacheRepository.assignCompany) matching job_user's narrow
+    // "UPDATE (company_id)" grant, not a full-entity merge/flush.
+    @Column(name = "company_id", insertable = false, updatable = false)
+    public UUID companyId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", referencedColumnName = "id")
+    public CompanyEntity company;
 }

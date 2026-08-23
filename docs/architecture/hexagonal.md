@@ -1,7 +1,8 @@
 # Hexagonal (Ports & Adapters)
 
 **For:** simpler, technically-oriented services where a one-to-one mapping between REST endpoints
-and use cases is natural — `job-service`, `crawler-service`, `application-service`.
+and use cases is natural: `job-service`, `crawler-service`, `application-service`,
+`notification-service`.
 
 ## Layering
 

@@ -9,6 +9,7 @@ import io.quarkus.panache.common.Page;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
+import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -19,6 +20,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserJobPostPanacheRepository
         implements UserJobPostRepository, PanacheRepositoryBase<UserJobPostEntity, UUID> {
+
+    private static final Logger LOG = Logger.getLogger(UserJobPostPanacheRepository.class);
 
     private final UserJobPostMapper mapper;
 
@@ -50,22 +53,26 @@ public class UserJobPostPanacheRepository
             mapper.updateEntity(entity, u);
             entity.updatedAt = now;
             persistAndFlush(entity);
+            LOG.infof("UPDATE applications.user_job_post id=%s userId=%s", entity.id, entity.userId);
             return mapper.toDomain(entity);
         }
         entity = mapper.toEntity(u);
         if (entity.createdAt == null) entity.createdAt = now;
         entity.updatedAt = now;
         persistAndFlush(entity);
+        LOG.infof("INSERT applications.user_job_post id=%s userId=%s", entity.id, entity.userId);
         return mapper.toDomain(entity);
     }
 
     @Override
     public void removeById(UUID id) {
-        delete("id", id);
+        long deleted = delete("id", id);
+        LOG.infof("DELETE applications.user_job_post id=%s -> %d row(s)", id, deleted);
     }
 
     @Override
     public void removeAllByUser(UUID userId) {
-        delete("userId", userId);
+        long deleted = delete("userId", userId);
+        LOG.infof("DELETE applications.user_job_post userId=%s -> %d row(s)", userId, deleted);
     }
 }

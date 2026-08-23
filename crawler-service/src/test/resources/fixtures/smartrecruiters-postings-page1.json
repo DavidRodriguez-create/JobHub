@@ -1,0 +1,91 @@
+{
+  "totalFound": 3,
+  "offset": 0,
+  "limit": 100,
+  "content": [
+    {
+      "id": "8a7c9e1f-0001",
+      "name": "Backend Engineer",
+      "refNumber": "REQ-1001",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "region": "Baden-Wurttemberg",
+        "country": "Germany",
+        "fullLocation": "Stuttgart, Germany",
+        "remote": false,
+        "hybrid": true
+      },
+      "function": {
+        "id": "eng",
+        "label": "Engineering"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "mid_senior_level",
+        "label": "Mid-Senior level"
+      },
+      "releasedDate": "2026-06-15T08:00:00.000Z",
+      "ref": "https://api.smartrecruiters.com/v1/companies/BoschGroup/postings/8a7c9e1f-0001"
+    },
+    {
+      "id": "8a7c9e1f-0002",
+      "name": "Field Service Technician",
+      "refNumber": "REQ-1002",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "function": {
+        "id": "ops",
+        "label": "Operations"
+      },
+      "typeOfEmployment": {
+        "id": "APPRENTICESHIP",
+        "label": "Apprenticeship"
+      },
+      "experienceLevel": {
+        "id": "entry_level",
+        "label": "Entry level"
+      },
+      "releasedDate": "2026-06-10T08:00:00.000Z",
+      "ref": "https://api.smartrecruiters.com/v1/companies/BoschGroup/postings/8a7c9e1f-0002"
+    },
+    {
+      "id": "8a7c9e1f-0003",
+      "name": "HR Business Partner",
+      "refNumber": "REQ-1003",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Madrid",
+        "country": "Spain",
+        "fullLocation": "Madrid, Spain",
+        "remote": false,
+        "hybrid": false
+      },
+      "function": {
+        "id": "hr",
+        "label": "Human Resources"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "associate",
+        "label": "Associate"
+      },
+      "releasedDate": "2026-06-01T08:00:00.000Z",
+      "ref": "https://api.smartrecruiters.com/v1/companies/BoschGroup/postings/8a7c9e1f-0003"
+    }
+  ]
+}

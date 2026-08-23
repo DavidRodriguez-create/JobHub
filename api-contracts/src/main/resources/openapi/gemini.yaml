@@ -1,0 +1,127 @@
+openapi: 3.0.3
+info:
+  title: Google Gemini generateContent API (external)
+  version: 1.0.0
+  description: |
+    Minimal contract for the subset of the Google Generative Language API that
+    JobHub consumes (POST /v1beta/models/{model}:generateContent). This is an
+    EXTERNAL API we call, not one we serve — it lives here so the request/response
+    models are generated from a single source of truth, like every other contract.
+
+    Models only (generateApis=false): the path carries a literal ":generateContent"
+    suffix and an x-goog-api-key header, so the consuming service declares the
+    @RegisterRestClient method in-module (GeminiClient) and references these models.
+    The operation is described here only to document the endpoint and anchor the schemas.
+
+paths:
+  /v1beta/models/{model}:generateContent:
+    post:
+      operationId: generateContent
+      summary: Generate a single (non-streamed) content completion
+      x-implementation-status: existing
+      parameters:
+        - name: model
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-goog-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateContentRequest'
+      responses:
+        '200':
+          description: The model's reply
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateContentResponse'
+
+components:
+  schemas:
+
+    GenerateContentRequest:
+      type: object
+      properties:
+        systemInstruction:
+          $ref: '#/components/schemas/Content'
+        contents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Content'
+        generationConfig:
+          $ref: '#/components/schemas/GenerationConfig'
+
+    Content:
+      type: object
+      properties:
+        role:
+          type: string
+          description: 'One of: user, model. Omitted for systemInstruction.'
+        parts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Part'
+
+    Part:
+      type: object
+      properties:
+        text:
+          type: string
+
+    GenerationConfig:
+      type: object
+      properties:
+        temperature:
+          type: number
+          format: double
+          description: Sampling temperature; 0 for deterministic extraction
+        responseMimeType:
+          type: string
+          description: Set to "application/json" to force a valid JSON response
+
+    GenerateContentResponse:
+      type: object
+      properties:
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Candidate'
+        promptFeedback:
+          $ref: '#/components/schemas/PromptFeedback'
+        usageMetadata:
+          $ref: '#/components/schemas/UsageMetadata'
+
+    UsageMetadata:
+      type: object
+      properties:
+        promptTokenCount:
+          type: integer
+          description: Tokens in the request prompt (input tokens)
+        candidatesTokenCount:
+          type: integer
+          description: Tokens across all generated candidates (output tokens)
+        totalTokenCount:
+          type: integer
+          description: Total tokens billed for the request
+
+    Candidate:
+      type: object
+      properties:
+        content:
+          $ref: '#/components/schemas/Content'
+        finishReason:
+          type: string
+
+    PromptFeedback:
+      type: object
+      properties:
+        blockReason:
+          type: string

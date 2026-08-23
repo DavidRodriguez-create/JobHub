@@ -1,0 +1,4 @@
+# Shell scripts are mounted into Linux containers (Postgres docker-entrypoint-initdb.d);
+# CRLF line endings break the shebang ("/bin/bash^M: bad interpreter") on Windows
+# checkouts with core.autocrlf=true. Force LF regardless of local git config.
+*.sh text eol=lf

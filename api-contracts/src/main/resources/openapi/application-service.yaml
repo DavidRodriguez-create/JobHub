@@ -20,6 +20,12 @@ tags:
     description: Track job applications (crawled-job and manual)
   - name: Stats
     description: Aggregate metrics for the Dashboard screen
+  - name: Internal
+    description: |
+      Service-to-service endpoints. Protected by a pre-shared API key
+      (`X-Service-Key` header) rather than a user JWT. Not exposed to the
+      internet or the UI — only called by other JobHub backend services on
+      the same network.
 
 components:
   securitySchemes:
@@ -27,6 +33,14 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    serviceKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Service-Key
+      description: |
+        Pre-shared API key for service-to-service calls. The value must match the
+        deployment secret (`JOBHUB_INTERNAL_SERVICE_KEY` env var). Used by internal
+        endpoints that do not require a user JWT.
 
   schemas:
 
@@ -135,6 +149,16 @@ components:
           type: string
         company:
           type: string
+        companyLogoUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: |
+            Real company logo URL. For crawled-job applications it is the value frozen
+            on the snapshot at apply time (from job-service CompanyInfo.logoUrl); null
+            for manual entries, for source posts that had no logo, and for applications
+            created before this field was captured.
+          x-implementation-status: planned
         location:
           type: string
           description: "e.g. 'Barcelona, Spain' or 'Remote'"
@@ -353,6 +377,212 @@ components:
           type: string
           pattern: '^\d{6}$'
           description: The 6-digit code sent to the user's registered email address.
+
+    # ── Internal: interest profile ────────────────────────────────────────────
+
+    InterestProfileResponse:
+      x-implementation-status: existing
+      type: object
+      required: [userId, locations, companies, keywords]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        locations:
+          type: array
+          items:
+            type: string
+          maxItems: 5
+          description: |
+            Top locations from the user's application history, ordered by frequency
+            (most applied-to first). Derived from job snapshot and manual-entry
+            locations. Empty if the user has no applications.
+        companies:
+          type: array
+          items:
+            type: string
+          maxItems: 5
+          description: |
+            Top companies from the user's application history, ordered by frequency.
+            Derived from job snapshot and manual-entry companies.
+            Empty if the user has no applications.
+        keywords:
+          type: array
+          items:
+            type: string
+          maxItems: 5
+          description: |
+            Top keywords extracted from job titles in the user's application history,
+            ordered by frequency. Common stop words are excluded. Empty if the user
+            has no applications.
+
+    StaleApplicationResponse:
+      x-implementation-status: planned
+      type: object
+      required: [id, userId, jobTitle, company, currentStatus, daysSinceLastActivity]
+      description: |
+        Summary of a non-terminal application whose `updatedAt` has not changed for
+        longer than the requested window. Used by notification-service's ghosted-alert
+        scheduler to decide which applications to auto-mark GHOSTED.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Application id.
+        userId:
+          type: string
+          format: uuid
+          description: Owner of the application — the user to notify.
+        jobTitle:
+          type: string
+          description: Job title for the notification/email body (from snapshot or manual entry).
+        company:
+          type: string
+          description: Company name for the notification/email body.
+        currentStatus:
+          $ref: '#/components/schemas/ApplicationStatus'
+        daysSinceLastActivity:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Whole days since `updatedAt`, computed server-side at query time.
+
+    StaleApplicationListResponse:
+      x-implementation-status: planned
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaleApplicationResponse'
+
+    ApplicationSummaryResponse:
+      x-implementation-status: planned
+      type: object
+      required: [applicationId, company, jobTitle]
+      description: |
+        Compact display summary for one application, resolved by id for the
+        enrich-at-read path (ADR 0014). Carries the company name, job title, and
+        company logo URL that a notification card needs (CoLogo chip + primary
+        label + real logo image). Returned only for ids that resolve: unresolved
+        ids are omitted from the list, so every item here has a populated company
+        and jobTitle; `companyLogoUrl` may still be null for a resolved item.
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+          description: The resolved application id, echoed so callers can map results back.
+        company:
+          type: string
+          description: Company name (from the crawled-job snapshot or the manual-entry job).
+        jobTitle:
+          type: string
+          description: Job title (from the crawled-job snapshot or the manual-entry job).
+        companyLogoUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: |
+            Real company logo URL frozen on the crawled-job snapshot at apply time
+            (sourced from job-service CompanyInfo.logoUrl). Null for manual-entry
+            applications, for crawled jobs whose source post had no logo, and for
+            applications applied to before this field was captured. The UI renders
+            the image when present and falls back to an initial-based chip otherwise.
+          x-implementation-status: planned
+
+    ApplicationSummaryListResponse:
+      x-implementation-status: planned
+      type: object
+      required: [items]
+      description: |
+        Wrapper for the batch summary resolve. `items` holds one entry per id
+        that resolved, in no guaranteed order, and may be shorter than the
+        request (unresolved ids are omitted) or empty. A partial or empty list
+        is a success, not an error.
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationSummaryResponse'
+
+    InternalStatusUpdateResponse:
+      x-implementation-status: planned
+      type: object
+      required: [id, userId, newStatus]
+      description: |
+        Minimal confirmation returned after a service-key-authenticated status update.
+        Deliberately small — the caller (notification-service) only needs to confirm the
+        new status and identify the user to notify.
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        newStatus:
+          $ref: '#/components/schemas/ApplicationStatus'
+
+    # ── Internal: upcoming next steps (interview reminders) ────────────────────
+
+    UpcomingNextStepsResponse:
+      x-implementation-status: planned
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UpcomingNextStepItem'
+          description: |
+            Applications across ALL users whose `nextStep.date` falls within the
+            requested forward window, with a non-empty next-step label and a
+            non-terminal status. Used by notification-service to emit 24h and 1h
+            interview reminders. Empty array if nothing is upcoming in the window.
+
+    UpcomingNextStepItem:
+      x-implementation-status: planned
+      type: object
+      required: [userId, applicationId, nextStepLabel, nextStepDate, status]
+      description: |
+        One upcoming next-step occurrence for a single user's application. Carries
+        everything notification-service needs to build reminder content (label,
+        date, company) and to key idempotency (userId + applicationId), so no
+        follow-up per-application fetch is required.
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: Owner of the application (references auth.user.id).
+        applicationId:
+          type: string
+          format: uuid
+          description: The application the next step belongs to. Half of the idempotency key.
+        nextStepLabel:
+          type: string
+          maxLength: 200
+          description: "The next-step label, e.g. 'Interview with Product Manager'."
+        nextStepDate:
+          type: string
+          format: date
+          description: The calendar date of the next step (applications stores DATE, not time).
+        nextStepReminderAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            The user-set reminder instant for this step, if any. Informational for
+            the caller; the 24h/1h offsets are computed by notification-service from
+            `nextStepDate`. Null when the user did not set an explicit reminder.
+        companyName:
+          type: string
+          nullable: true
+          description: |
+            Company for display in the reminder ("... at Acme"). Resolved from the
+            crawled-job snapshot or the manual-entry job details. Null when unknown.
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
 
     # ── Error ──────────────────────────────────────────────────────────────────
 
@@ -755,3 +985,386 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  # ── Internal (service-to-service) ──────────────────────────────────────────
+
+  /internal/users/{userId}/interest-profile:
+    get:
+      tags: [Internal]
+      operationId: getUserInterestProfile
+      summary: Get a user's interest profile derived from application history (service-to-service)
+      x-implementation-status: existing
+      description: |
+        Aggregates the authenticated user's application history to produce an
+        interest profile: the top locations, companies, and title keywords from
+        jobs they have applied to. Intended for notification-service to build
+        personalised job-search queries for the weekly digest email.
+
+        Returns 200 with empty arrays if the user has no application history —
+        the caller decides whether to send a generic digest or skip.
+
+        Protected by `X-Service-Key` (pre-shared API key), not a user JWT.
+        This endpoint is not exposed to the internet or the UI.
+      security:
+        - serviceKeyAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The user ID to compute the interest profile for.
+      responses:
+        '200':
+          description: Interest profile (may have empty arrays if no history)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterestProfileResponse'
+        '400':
+          description: Invalid userId format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid X-Service-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/applications/stale:
+    get:
+      tags: [Internal]
+      operationId: listStaleApplications
+      summary: List non-terminal applications inactive for longer than a window (service-to-service)
+      x-implementation-status: planned
+      description: |
+        Returns applications in a **non-terminal** status (excludes rejected, accepted,
+        withdrawn, ghosted) whose `updatedAt` is older than `days` days. Used by
+        notification-service's ghosted-alert scheduler to find candidates to auto-mark
+        GHOSTED after a period of silence.
+
+        The window is measured server-side against `updatedAt`. Each item carries the
+        owning `userId` and a display-ready job title/company so the caller can build the
+        notification and email without a second round-trip.
+
+        Protected by `X-Service-Key` (pre-shared API key), not a user JWT.
+        This endpoint is not exposed to the internet or the UI.
+      security:
+        - serviceKeyAuth: []
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            default: 14
+          description: |
+            Inactivity threshold in days. An application is stale when
+            `daysSinceLastActivity >= days`. Defaults to 14.
+      responses:
+        '200':
+          description: Stale applications (may be empty)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaleApplicationListResponse'
+        '400':
+          description: Invalid days parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid X-Service-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/applications/{id}/status:
+    put:
+      tags: [Internal]
+      operationId: updateApplicationStatusInternal
+      summary: Update an application's status without a user JWT (service-to-service)
+      x-implementation-status: planned
+      description: |
+        Sets the status of an application on behalf of the system rather than the owning
+        user. The ghosted-alert scheduler calls this to set `ghosted` after the inactivity
+        window elapses; notification-service has no user JWT and acts for the system.
+
+        Unlike `PATCH /applications/{id}/status` (user-JWT, owner-scoped), this endpoint is
+        authenticated by `X-Service-Key` and identifies the application solely by its id —
+        there is no owner check because the caller is a trusted backend service. The owning
+        `userId` is returned so the caller can notify the right user.
+
+        Protected by `X-Service-Key` (pre-shared API key), not a user JWT.
+        This endpoint is not exposed to the internet or the UI.
+      security:
+        - serviceKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The application id to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApplicationStatusRequest'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalStatusUpdateResponse'
+        '400':
+          description: Invalid status value or id format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid X-Service-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/applications/upcoming-next-steps:
+    get:
+      tags: [Internal]
+      operationId: getUpcomingNextSteps
+      summary: List upcoming next steps across all users (service-to-service)
+      x-implementation-status: planned
+      description: |
+        Returns applications across ALL users whose `nextStep.date` falls within a
+        forward time window measured from now, restricted to non-empty next-step
+        labels and non-terminal statuses. Intended for notification-service's
+        interview-reminder scheduler to find candidates for 24h and 1h reminders.
+
+        Read-only aggregation over existing `applications.application` columns
+        (`next_step_label`, `next_step_date`, `next_step_reminder_at`, `status`,
+        `user_id`) joined to the job snapshot / manual-entry job for the company
+        name. No schema change.
+
+        The window is expressed in hours (`withinHours`); the caller asks for a
+        bound generous enough to cover the largest reminder offset (24h) plus its
+        own poll interval, then computes the exact 24h/1h fire times locally. The
+        scheduler is responsible for not re-sending: see
+        `notification.interview_reminder_sent` (ADR 0009).
+
+        Returns 200 with an empty `items` array when nothing is upcoming.
+
+        Protected by `X-Service-Key` (pre-shared API key), not a user JWT.
+        This endpoint is not exposed to the internet or the UI.
+      security:
+        - serviceKeyAuth: []
+      parameters:
+        - name: withinHours
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 168
+            default: 26
+          description: |
+            Forward window size in hours from now. Default 26 covers the 24h
+            reminder offset plus a 2h scheduler slack. Max 168 (one week).
+      responses:
+        '200':
+          description: Upcoming next steps within the window (may be empty)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpcomingNextStepsResponse'
+        '400':
+          description: Invalid withinHours value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid X-Service-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/applications/{id}/owner/{userId}:
+    head:
+      tags: [Internal]
+      operationId: checkApplicationOwner
+      summary: Verify that an application belongs to a given user (service-to-service)
+      x-implementation-status: planned
+      description: |
+        Returns 204 if the application identified by `id` belongs to `userId`,
+        or 404 if the application does not exist or is owned by a different user.
+        The two negative cases are deliberately indistinguishable to avoid leaking
+        application existence to callers.
+
+        Called by notification-service when creating a custom reminder to ensure the
+        requesting user actually owns the referenced application (ADR 0011 section 7).
+
+        HEAD is used because no body is needed; the status code is the answer.
+
+        Protected by `X-Service-Key` (pre-shared API key), not a user JWT.
+        This endpoint is not exposed to the internet or the UI.
+      security:
+        - serviceKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The application id to check.
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The user id to check ownership against.
+      responses:
+        '204':
+          description: Application exists and is owned by the given user
+        '401':
+          description: Missing or invalid X-Service-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application not found or not owned by the given user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/applications/summaries:
+    get:
+      tags: [Internal]
+      operationId: getApplicationSummaries
+      summary: Resolve company + job title for a batch of application ids (service-to-service)
+      x-implementation-status: planned
+      description: |
+        Resolves a batch of application ids to a compact display summary
+        (company name + job title) in a single call. Intended for
+        notification-service's enrich-at-read path (ADR 0014): when building a
+        page of notification cards, the caller collects the distinct non-null
+        `applicationId`s on the page and resolves them all in one round trip
+        instead of one call per notification (avoids N+1).
+
+        Read-only aggregation over existing `applications.application` columns
+        joined to the crawled-job snapshot or the manual-entry job for the
+        company name and job title. No schema change.
+
+        Batch input format: `ids` is a single comma-joined query parameter
+        (`ids=<uuid>,<uuid>,...`), expressed as an OpenAPI form-style,
+        non-exploded array. Each value must be a UUID.
+
+        Unknown-id behaviour: ids that do not resolve (not found, or owned by a
+        different user, or otherwise unresolvable) are **omitted** from `items`
+        rather than returned as null entries. The response can therefore be
+        shorter than the request, in any order. Callers map results by
+        `applicationId` and treat any absent id as unresolved, degrading the
+        card to a generic icon + label. A partial or empty `items` array is a
+        success (200), never an error.
+
+        Protected by `X-Service-Key` (pre-shared API key), not a user JWT.
+        This endpoint is not exposed to the internet or the UI.
+      security:
+        - serviceKeyAuth: []
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items:
+              type: string
+              format: uuid
+          description: |
+            Comma-joined list of application ids to resolve
+            (`ids=<uuid>,<uuid>,...`). Between 1 and 100 ids per call; 100
+            matches the maximum notification page size, so one page resolves in
+            one call. Duplicate ids may be collapsed in the response.
+      responses:
+        '200':
+          description: |
+            Resolved summaries (may be partial or empty). Contains one item per
+            id that resolved; unresolved ids are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationSummaryListResponse'
+        '400':
+          description: Missing `ids`, malformed UUID, empty list, or more than 100 ids
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid X-Service-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

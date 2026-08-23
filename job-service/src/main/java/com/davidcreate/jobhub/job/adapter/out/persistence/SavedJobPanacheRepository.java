@@ -11,6 +11,7 @@ import io.quarkus.panache.common.Page;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
+import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -22,6 +23,8 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class SavedJobPanacheRepository
         implements SavedJobRepository, PanacheRepositoryBase<SavedJobEntity, UUID> {
+
+    private static final Logger LOG = Logger.getLogger(SavedJobPanacheRepository.class);
 
     private final JobPostMapper jobPostMapper;
     private final EntityManager em;
@@ -43,11 +46,13 @@ public class SavedJobPanacheRepository
         e.jobId = jobId;
         e.savedAt = OffsetDateTime.now();
         persist(e);
+        LOG.infof("INSERT job.saved_job userId=%s jobId=%s", userId, jobId);
     }
 
     @Override
     public void remove(UUID userId, UUID jobId) {
-        delete("userId = ?1 and jobId = ?2", userId, jobId);
+        long deleted = delete("userId = ?1 and jobId = ?2", userId, jobId);
+        LOG.infof("DELETE job.saved_job userId=%s jobId=%s -> %d row(s)", userId, jobId, deleted);
     }
 
     @Override

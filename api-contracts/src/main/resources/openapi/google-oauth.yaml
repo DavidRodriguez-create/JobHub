@@ -1,0 +1,109 @@
+openapi: 3.0.3
+info:
+  title: Google OAuth 2.0 token + userinfo API (external)
+  version: 1.0.0
+  description: |
+    Minimal contract for the subset of Google's OAuth 2.0 / OpenID Connect endpoints
+    that auth-service calls to complete social login (story #459, ADR 0027). This is
+    an EXTERNAL API we call, not one we serve; it lives here so the request/response
+    models are generated from a single source of truth, like every other contract.
+
+    Models only (generateApis=false): the token endpoint uses a form-encoded body and
+    the userinfo endpoint lives on a different host than the token endpoint, so the
+    consuming service (auth-service) declares its own @RegisterRestClient interfaces
+    (GoogleTokenClient, GoogleUserInfoClient) referencing these models. The operations
+    are described here only to document the endpoints and anchor the schemas.
+
+paths:
+  /token:
+    post:
+      operationId: exchangeGoogleToken
+      summary: Exchange an authorization code for an access token
+      x-implementation-status: existing
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                client_id:
+                  type: string
+                client_secret:
+                  type: string
+                redirect_uri:
+                  type: string
+                grant_type:
+                  type: string
+      responses:
+        '200':
+          description: The access token issued for the authorization code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoogleTokenResponse'
+
+  /v1/userinfo:
+    get:
+      operationId: getGoogleUserInfo
+      summary: Fetch the OpenID Connect userinfo for the access token's bearer
+      x-implementation-status: existing
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The authenticated Google account's profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoogleUserInfoResponse'
+
+components:
+  schemas:
+
+    GoogleTokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+        expires_in:
+          type: integer
+        scope:
+          type: string
+        refresh_token:
+          type: string
+        id_token:
+          type: string
+
+    GoogleUserInfoResponse:
+      type: object
+      description: |
+        The OpenID Connect userinfo payload. `email_verified` is Google's own claim
+        that the account controls the reported email (ADR 0027 / BR3); auth-service
+        never treats an unverified Google email as an auto-link match.
+      properties:
+        sub:
+          type: string
+          description: The stable Google subject identifier (durable identity key, BR5).
+        email:
+          type: string
+        email_verified:
+          type: boolean
+        name:
+          type: string
+        given_name:
+          type: string
+        family_name:
+          type: string
+        picture:
+          type: string
+        locale:
+          type: string

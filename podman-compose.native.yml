@@ -1,4 +1,4 @@
-# JobHub — full local stack (PostgreSQL + 4 Quarkus services + Vite UI) — NATIVE mode.
+# JobHub — full local stack (PostgreSQL + 5 Quarkus services + Vite UI) — NATIVE mode.
 #
 # Backend services built as native GraalVM images using Dockerfile.native.
 # Package the services first with native compilation (takes 5-10 minutes):
@@ -38,10 +38,69 @@ x-applications-db: &applications-db
   DATABASE_USERNAME: ${APPLICATIONS_DATABASE_USERNAME}
   DATABASE_PASSWORD: ${APPLICATIONS_DATABASE_PASSWORD}
 
+x-notification-db: &notification-db
+  DATABASE_URL: ${NOTIFICATION_DATABASE_URL}
+  DATABASE_USERNAME: ${NOTIFICATION_DATABASE_USERNAME}
+  DATABASE_PASSWORD: ${NOTIFICATION_DATABASE_PASSWORD}
+
+# Auth Service email (Story #6) — prod SMTP; dev/test use the mock notifier.
+# Set these in .env for a live mailer; leave blank to keep mock mode active.
+x-auth-mailer: &auth-mailer
+  MAILER_FROM: ${MAILER_FROM:-}
+  MAILER_HOST: ${MAILER_HOST:-}
+  MAILER_PORT: ${MAILER_PORT:-}
+  MAILER_USERNAME: ${MAILER_USERNAME:-}
+  MAILER_PASSWORD: ${MAILER_PASSWORD:-}
+  MAILER_START_TLS: ${MAILER_START_TLS:-}
+
+# Notification Service email (Story #80 / ADR 0008, story #209 #240) — digest /
+# interview-reminder / ghosted-alert SMTP. Separate from auth-mailer so the two services can
+# use different senders/relays. NOTIFICATION_MAILER_MOCK governs mock mode directly (default
+# true): leave it unset/true to keep mock mode (emails logged, not sent) regardless of the
+# HOST value. Set NOTIFICATION_MAILER_MOCK=false together with a real HOST/USERNAME/PASSWORD
+# to send real email.
+x-notification-mailer: &notification-mailer
+  NOTIFICATION_MAILER_MOCK: ${NOTIFICATION_MAILER_MOCK:-false}
+  NOTIFICATION_MAILER_FROM: ${NOTIFICATION_MAILER_FROM:-digest@jobhub.local}
+  NOTIFICATION_MAILER_HOST: ${NOTIFICATION_MAILER_HOST:-}
+  NOTIFICATION_MAILER_PORT: ${NOTIFICATION_MAILER_PORT:-587}
+  NOTIFICATION_MAILER_USERNAME: ${NOTIFICATION_MAILER_USERNAME:-}
+  NOTIFICATION_MAILER_PASSWORD: ${NOTIFICATION_MAILER_PASSWORD:-}
+  NOTIFICATION_MAILER_START_TLS: ${NOTIFICATION_MAILER_START_TLS:-REQUIRED}
+
+# Container healthchecks for the Quarkus services (quarkus-smallrye-health).
+# Kept identical to podman-compose.yml: these two files drift easily, and a probe
+# that exists in only one of them is worse than none, because the JVM and native
+# stacks then report health differently.
+#
+# Each service overrides `test` with its own port, and auth-service also with its
+# own path: it is root-pathed at /auth, so its probe is /auth/q/health/ready.
+#
+# The probe hits /q/health/ready rather than /live: readiness includes the Agroal
+# datasource check, so a service that is up but cannot reach Postgres reports
+# unhealthy instead of pretending to be fine.
+#
+# The wget-or-curl form is deliberate. wget is the binary present in the JVM
+# images (eclipse-temurin alpine ships busybox wget and no curl); the native
+# images build on ubi-minimal, which ships curl. Trying both keeps one probe
+# string correct for either base. The wget branch is verified against the running
+# JVM containers; the curl branch is not, because ubi-minimal could not be pulled
+# to check it, so treat the native stack's healthcheck as unverified until someone
+# runs `podman compose -f podman-compose.native.yml up` and confirms healthy state.
+x-service-healthcheck: &service-healthcheck
+  interval: 15s
+  timeout: 5s
+  retries: 10
+  start_period: 40s
+
 services:
   db:
     image: docker.io/library/postgres:16-alpine
     container_name: jobhub-db
+    # Story #328: preload pg_stat_statements so per-query stats (calls, mean_exec_time)
+    # are collected for slow-query analysis. The extension itself is created by
+    # db/init/047-pg-stat-statements.sql (fresh-volume only, forward-only migration).
+    command: postgres -c shared_preload_libraries=pg_stat_statements
     environment:
       POSTGRES_USER: jobhub
       POSTGRES_PASSWORD: jobhub
@@ -55,14 +114,61 @@ services:
       - ./db/init/001-schemas.sql:/docker-entrypoint-initdb.d/001-schemas.sql:ro
       - ./db/init/010-crawler.sql:/docker-entrypoint-initdb.d/010-crawler.sql:ro
       - ./db/seeds/011-crawler-seeds.sql:/docker-entrypoint-initdb.d/011-crawler-seeds.sql:ro
+      - ./db/init/014-crawler-job-post-location.sql:/docker-entrypoint-initdb.d/014-crawler-job-post-location.sql:ro
+      - ./db/init/015-crawler-smartrecruiters.sql:/docker-entrypoint-initdb.d/015-crawler-smartrecruiters.sql:ro
+      - ./db/init/016-crawler-trigger-request.sql:/docker-entrypoint-initdb.d/016-crawler-trigger-request.sql:ro
+      - ./db/init/017-job-post-perf.sql:/docker-entrypoint-initdb.d/017-job-post-perf.sql:ro
+      - ./db/init/018-crawler-trigger-cancel.sql:/docker-entrypoint-initdb.d/018-crawler-trigger-cancel.sql:ro
+      - ./db/init/019-crawler-sources-expand.sql:/docker-entrypoint-initdb.d/019-crawler-sources-expand.sql:ro
       - ./db/init/020-auth.sql:/docker-entrypoint-initdb.d/020-auth.sql:ro
       - ./db/seeds/021-auth-seeds.sql:/docker-entrypoint-initdb.d/021-auth-seeds.sql:ro
+      - ./db/init/022-auth-email-verification.sql:/docker-entrypoint-initdb.d/022-auth-email-verification.sql:ro
+      - ./db/init/023-auth-admin-trigger-action.sql:/docker-entrypoint-initdb.d/023-auth-admin-trigger-action.sql:ro
+      - ./db/init/024-auth-2fa-totp.sql:/docker-entrypoint-initdb.d/024-auth-2fa-totp.sql:ro
       - ./db/init/030-applications.sql:/docker-entrypoint-initdb.d/030-applications.sql:ro
+      - ./db/init/031-applications-snapshot-company-logo.sql:/docker-entrypoint-initdb.d/031-applications-snapshot-company-logo.sql:ro
+      - ./db/init/040-notification.sql:/docker-entrypoint-initdb.d/040-notification.sql:ro
+      - ./db/init/041-notification-notifications.sql:/docker-entrypoint-initdb.d/041-notification-notifications.sql:ro
+      - ./db/init/042-notification-digest-run.sql:/docker-entrypoint-initdb.d/042-notification-digest-run.sql:ro
+      - ./db/init/043-notification-interview-reminders.sql:/docker-entrypoint-initdb.d/043-notification-interview-reminders.sql:ro
+      - ./db/init/044-notification-add-application-id.sql:/docker-entrypoint-initdb.d/044-notification-add-application-id.sql:ro
+      - ./db/init/045-notification-preferences-drop-redundant-idx.sql:/docker-entrypoint-initdb.d/045-notification-preferences-drop-redundant-idx.sql:ro
+      - ./db/init/046-notification-custom-reminders.sql:/docker-entrypoint-initdb.d/046-notification-custom-reminders.sql:ro
+      - ./db/init/047-pg-stat-statements.sql:/docker-entrypoint-initdb.d/047-pg-stat-statements.sql:ro
+      - ./db/init/048-auth-drop-admin-trigger-action.sql:/docker-entrypoint-initdb.d/048-auth-drop-admin-trigger-action.sql:ro
+      - ./db/init/049-job-post-facet-stamp-index.sql:/docker-entrypoint-initdb.d/049-job-post-facet-stamp-index.sql:ro
+      - ./db/init/050-auth-apply-profile.sql:/docker-entrypoint-initdb.d/050-auth-apply-profile.sql:ro
+      - ./db/init/051-job-company.sql:/docker-entrypoint-initdb.d/051-job-company.sql:ro
+      - ./db/init/052-company-logo-backfill.sql:/docker-entrypoint-initdb.d/052-company-logo-backfill.sql:ro
+      - ./db/init/053-company-enrichment-tracking.sql:/docker-entrypoint-initdb.d/053-company-enrichment-tracking.sql:ro
+      - ./db/init/054-company-data-seed.sql:/docker-entrypoint-initdb.d/054-company-data-seed.sql:ro
+      - ./db/init/055-auth-password-hash-nullable.sql:/docker-entrypoint-initdb.d/055-auth-password-hash-nullable.sql:ro
+      - ./db/init/056-auth-user-identity.sql:/docker-entrypoint-initdb.d/056-auth-user-identity.sql:ro
+      - ./db/init/057-company-drop-enrichment-tracking.sql:/docker-entrypoint-initdb.d/057-company-drop-enrichment-tracking.sql:ro
+      - ./db/init/058-crawler-trigger-request-progress.sql:/docker-entrypoint-initdb.d/058-crawler-trigger-request-progress.sql:ro
+      - ./db/init/059-crawler-trigger-request-origin-outcome.sql:/docker-entrypoint-initdb.d/059-crawler-trigger-request-origin-outcome.sql:ro
+      - ./db/init/060-crawler-trigger-request-active-unique.sql:/docker-entrypoint-initdb.d/060-crawler-trigger-request-active-unique.sql:ro
+      - ./db/init/061-crawler-trigger-request-revoke-job-user.sql:/docker-entrypoint-initdb.d/061-crawler-trigger-request-revoke-job-user.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U jobhub -d jobhub"]
       interval: 5s
       timeout: 5s
       retries: 12
+
+  # Local LLM used by the crawler's enrichment pass. OPT-IN: this service only
+  # starts when the "ollama" compose profile is requested:
+  #   podman compose -f podman-compose.native.yml --profile ollama up -d
+  # The model is NOT baked into the image — pull it once into the named volume
+  # after first start:
+  #   podman exec jobhub-ollama ollama pull qwen2.5:1.5b
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    container_name: jobhub-ollama
+    profiles: ["ollama"]
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
 
   # Scheduled batch crawler — writes to the crawler schema. No published port.
   crawler-service:
@@ -70,22 +176,66 @@ services:
       context: .
       dockerfile: crawler-service/src/main/docker/Dockerfile.native
     container_name: jobhub-crawler-service
+    # Story #398 (ADR 0032, D1): must stay above quarkus.shutdown.timeout (30s) so the
+    # ShutdownEvent observer's bounded drain (crawler.shutdown.drain-timeout, default 25s)
+    # gets to run to completion before compose SIGKILLs the container.
+    stop_grace_period: 35s
+    healthcheck:
+      <<: *service-healthcheck
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8081/q/health/ready || curl -fsS -o /dev/null http://localhost:8081/q/health/ready"]
     depends_on:
       db:
         condition: service_healthy
     environment:
       <<: *crawler-db
+      # LLM enrichment toggle — set CRAWLER_ENRICHMENT_ENABLED=false in .env on a host
+      # without an Ollama/LLM backend (the scheduler no-ops; no model calls are made).
+      CRAWLER_ENRICHMENT_ENABLED: ${CRAWLER_ENRICHMENT_ENABLED:-true}
+      # Hosted-first (Gemini) with the local Ollama model as opt-in fallback. Export
+      # GEMINI_API_KEY to exercise the hosted path locally; if unset, it runs
+      # local-only (handy for testing the fallback against the same prompt/parser).
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Ollama provider toggle (ADR 0004) — disabled by default so the crawler
+      # starts without the ollama container. Set to "true" AND start the stack
+      # with `--profile ollama` to enable the local fallback provider.
+      CRAWLER_OLLAMA_ENABLED: ${CRAWLER_OLLAMA_ENABLED:-false}
+      OLLAMA_BASE_URL: http://ollama:11434
+      # Admin crawl/enrichment trigger (Story #7 / ADR 0003) — how often
+      # TriggerRequestScheduler polls crawler.trigger_request for queued rows
+      # written by job-service's admin endpoints.
+      CRAWLER_TRIGGER_POLL_CRON: ${CRAWLER_TRIGGER_POLL_CRON:-0/10 * * * * ?}
+      # Pre-shared API key guarding /internal/trigger-requests (ADR 0033, ticket
+      # #583/#584). crawler-service is now the sole writer of crawler.trigger_request;
+      # job-service calls this endpoint with the same key, sent as X-Service-Key.
+      JOBHUB_INTERNAL_SERVICE_KEY: ${JOBHUB_INTERNAL_SERVICE_KEY:-dev-internal-service-key}
 
   job-service:
     build:
       context: .
       dockerfile: job-service/src/main/docker/Dockerfile.native
     container_name: jobhub-job-service
+    healthcheck:
+      <<: *service-healthcheck
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8081/q/health/ready || curl -fsS -o /dev/null http://localhost:8081/q/health/ready"]
     depends_on:
       db:
         condition: service_healthy
     environment:
       <<: *job-db
+      # Admin crawl/enrichment trigger (Story #7 / ADR 0003). Toggle without a
+      # rebuild: change the value and `podman compose -f podman-compose.native.yml up -d job-service`.
+      JOBHUB_ADMIN_TRIGGER_ENABLED: ${JOBHUB_ADMIN_TRIGGER_ENABLED:-true}
+      # Outbound: auth-service REST client (admin 2FA gate, ADR 0019: reads/verifies
+      # the triggering admin's own 2FA; replaces the removed emailed-code gate).
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8082}
+      # Pre-shared API key for the AUTH_SERVICE_URL call above, sent as X-Service-Key
+      # (ADR 0008). Must match auth-service's own configured value.
+      JOBHUB_INTERNAL_SERVICE_KEY: ${JOBHUB_INTERNAL_SERVICE_KEY:-dev-internal-service-key}
+      # Outbound: crawler-service REST client (trigger-request writes, ADR 0033,
+      # ticket #583). crawler-service is the sole writer of crawler.trigger_request;
+      # queueing/cancelling an admin pass now goes through its internal endpoints
+      # instead of a cross-schema INSERT/UPDATE. Reuses JOBHUB_INTERNAL_SERVICE_KEY above.
+      CRAWLER_SERVICE_URL: ${CRAWLER_SERVICE_URL:-http://crawler-service:8081}
     ports:
       - "8081:8081"
 
@@ -94,11 +244,25 @@ services:
       context: .
       dockerfile: auth-service/src/main/docker/Dockerfile.native
     container_name: jobhub-auth-service
+    healthcheck:
+      <<: *service-healthcheck
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8082/auth/q/health/ready || curl -fsS -o /dev/null http://localhost:8082/auth/q/health/ready"]
     depends_on:
       db:
         condition: service_healthy
     environment:
-      <<: *auth-db
+      <<: [*auth-db, *auth-mailer]
+      # Admin allowlist (ADR 0003): comma-separated emails authorised to call the
+      # crawl/enrichment admin trigger endpoints. Empty = no admins.
+      AUTH_ADMIN_EMAILS: ${AUTH_ADMIN_EMAILS:-}
+      # Social login OAuth (ADR 0027, story #459). Empty client id/secret = that
+      # provider is treated as unconfigured (GET /oauth/{provider}/start returns 404).
+      # Create the apps in Google Cloud Console + a GitHub OAuth App, then set these.
+      OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL:-http://localhost:5173}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
     ports:
       - "8082:8082"
 
@@ -107,6 +271,9 @@ services:
       context: .
       dockerfile: application-service/src/main/docker/Dockerfile.native
     container_name: jobhub-application-service
+    healthcheck:
+      <<: *service-healthcheck
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8083/q/health/ready || curl -fsS -o /dev/null http://localhost:8083/q/health/ready"]
     depends_on:
       db:
         condition: service_healthy
@@ -119,6 +286,30 @@ services:
     ports:
       - "8083:8083"
 
+  # Weekly digest scheduler + notification REST API — reads from the notification
+  # schema. No user-facing port needed in prod (scheduler only); exposed for dev.
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/src/main/docker/Dockerfile.native
+    container_name: jobhub-notification-service
+    healthcheck:
+      <<: *service-healthcheck
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8084/q/health/ready || curl -fsS -o /dev/null http://localhost:8084/q/health/ready"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: [*notification-db, *notification-mailer]
+      # Service-to-service auth (ADR 0008) — must match auth/application-service.
+      JOBHUB_INTERNAL_SERVICE_KEY: ${JOBHUB_INTERNAL_SERVICE_KEY:-dev-internal-service-key}
+      # Outbound REST clients (digest scheduler calls these services).
+      AUTH_SERVICE_BASE_URL: http://auth-service:8082
+      APPLICATION_SERVICE_BASE_URL: http://application-service:8083
+      JOB_SERVICE_BASE_URL: http://job-service:8081
+    ports:
+      - "8084:8084"
+
   # Frontend — nginx serving the production Vite build.
   # Backend proxying is handled by nginx.conf (no Vite proxy needed).
   jobhub-ui:
@@ -130,8 +321,10 @@ services:
       - auth-service
       - job-service
       - application-service
+      - notification-service
     ports:
       - "80:80"
 
 volumes:
   pgdata:
+  ollama_models:

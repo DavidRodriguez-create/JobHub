@@ -14,6 +14,7 @@ public class JobPostSnapshotMapper {
                 .contentHash(e.contentHash)
                 .title(e.title)
                 .company(e.company)
+                .companyLogoUrl(e.companyLogoUrl)
                 .url(e.url)
                 .location(e.location)
                 .snapshottedAt(e.snapshottedAt)
@@ -27,6 +28,7 @@ public class JobPostSnapshotMapper {
         e.contentHash = s.getContentHash();
         e.title = s.getTitle();
         e.company = s.getCompany();
+        e.companyLogoUrl = s.getCompanyLogoUrl();
         e.url = s.getUrl();
         e.location = s.getLocation();
         e.snapshottedAt = s.getSnapshottedAt();

@@ -5,8 +5,13 @@
 // The few that remain UI-only are marked SYNTHETIC (see BACKEND_GAPS.md).
 
 /* ── Company derivation ──
-   JobPostResponse carries a `company` object ({ name, logoUrl }). When it is
-   absent we fall back to deriving a name/key from the posting URL host. */
+   JobPostResponse/JobPostSummary carry a `company` object per the frozen
+   CompanyInfo contract (story #428, ADR 0023): { id, slug, name, logoUrl,
+   website, industry, size, headquarters, description, tags, manuallyEdited,
+   updatedAt }. `name` is always present when `company` is present; every
+   other field is nullable and, when null, genuinely unknown (never "" or
+   "-"). When `company` itself is absent we fall back to deriving a name/key
+   from the posting URL host, exactly as before this story. */
 export function companyFromUrl(url) {
   if (!url) return { key: "unknown", name: "Unknown" };
   let host;
@@ -19,8 +24,63 @@ export function companyFromUrl(url) {
   return { key, name };
 }
 
+// Local, truncating derivation. AC-428-24: this is ONLY the fallback for the
+// unresolved window (company.slug/company.id both null), not the backend's
+// own slug rule (CompanySlug.of, job-service). Kept unchanged so the fallback
+// path itself stays a regression-locked no-op.
 function slug(s) {
   return (s || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16) || "unknown";
+}
+
+// AC-428-24: prefer the backend's own stable identity (`company.slug`, then
+// `company.id`) as the companies-map key; fall back to the local truncating
+// slug() derivation only when both are null (the AC-428-13 unresolved window).
+function companyKey(company) {
+  if (!company) return null;
+  if (company.slug) return company.slug;
+  if (company.id) return String(company.id);
+  if (company.name) return slug(company.name);
+  return null;
+}
+
+// Build the companies-map patch for a resolved `company` object straight from
+// the contract: every field maps 1:1, null stays null (never synthesised as
+// "-" or backfilled from the job's own location). AC-428-22/23.
+function companyPatchFromDto(company, jobUrl) {
+  return {
+    name: company.name,
+    logoUrl: company.logoUrl ?? null,
+    website: company.website ?? null,
+    industry: company.industry ?? null,
+    size: company.size ?? null,
+    hq: company.headquarters ?? null,
+    description: company.description ?? null,
+    tags: company.tags ?? null,
+    slug: company.slug ?? null,
+    id: company.id ?? null,
+    manuallyEdited: company.manuallyEdited ?? null,
+    updatedAt: company.updatedAt ?? null,
+    url: jobUrl || "",
+  };
+}
+
+// AC-428-25/26: upgrade-never-downgrade merge. A field present (non-null) on
+// the incoming patch replaces what is known; a null/undefined field on the
+// incoming patch (e.g. `description` on a GET /jobs list projection, per the
+// projection rule) never erases an already-known richer value.
+function mergeCompanyEntry(existing, patch) {
+  if (!existing) return { ...patch };
+  const merged = { ...existing };
+  Object.keys(patch).forEach((k) => {
+    const v = patch[k];
+    if (v !== null && v !== undefined) merged[k] = v;
+  });
+  return merged;
+}
+
+function registerCompany(companies, key, patch) {
+  if (!companies) return;
+  companies[key] = mergeCompanyEntry(companies[key], patch);
 }
 
 function daysSince(iso) {
@@ -30,12 +90,23 @@ function daysSince(iso) {
   return Math.max(0, Math.round((Date.now() - t) / 86400000));
 }
 
-const EMPLOYMENT_TYPE_LABEL = {
+export const EMPLOYMENT_TYPE_LABEL = {
   "full-time": "Full-time",
   "part-time": "Part-time",
   contract: "Contract",
   freelance: "Freelance",
   internship: "Internship",
+};
+
+export const CAREER_LEVEL_LABEL = {
+  internship: "Internship",
+  junior: "Junior",
+  mid: "Mid",
+  senior: "Senior",
+  lead: "Lead",
+  principal: "Principal",
+  manager: "Manager",
+  director: "Director",
 };
 
 // Compensation is stored as raw annual amounts; the UI works in thousands ("k").
@@ -55,32 +126,54 @@ function countryFromLocation(location) {
   return parts.length ? parts[parts.length - 1] : location;
 }
 
+/* ── Multiple locations (story #1) ──
+   JobPostResponse.locations is the full opening set (JobLocation[]), primary
+   first. Compose each entry's display string the same way the backend composes
+   `location`: "city, country", the non-blank part alone, or "Remote". Absent/
+   empty stays an empty array — never a single blank/undefined entry. */
+export function composeLocation(loc) {
+  if (!loc) return "";
+  const country = (loc.country || "").trim();
+  const city = (loc.city || "").trim();
+  if (city && country) return `${city}, ${country}`;
+  return city || country || "";
+}
+
+function locationsFromApi(dto) {
+  if (!Array.isArray(dto.locations)) return [];
+  return dto.locations
+    .filter((l) => l && (l.country || l.city))
+    .map((l) => ({ country: l.country ?? null, city: l.city ?? null, primary: !!l.primary }));
+}
+
 /**
  * Map a backend JobPostResponse to the UI job shape and register its company in
  * the provided companies map (so CoLogo can resolve it).
  */
 export function jobFromApi(dto, companies) {
   const co = dto.company && dto.company.name
-    ? { key: slug(dto.company.name), name: dto.company.name }
+    ? { key: companyKey(dto.company) || slug(dto.company.name), name: dto.company.name }
     : companyFromUrl(dto.url);
   const location = dto.location || "—";
-  if (companies && !companies[co.key]) {
-    companies[co.key] = {
-      name: co.name,
-      industry: "—",
-      size: "—",
-      hq: location,
-      url: dto.url || "",
-      logoUrl: (dto.company && dto.company.logoUrl) || "",
-    };
-  }
+  const patch = dto.company
+    ? companyPatchFromDto(dto.company, dto.url)
+    : { name: co.name, url: dto.url || "", logoUrl: null };
+  registerCompany(companies, co.key, patch);
   const minK = compToThousands(dto.compensationMin);
   const maxK = compToThousands(dto.compensationMax);
+  // Story #330: GET /jobs now returns a slim JobPostSummary (no description/requirements
+  // keys at all); GET /jobs/{id} and SavedJobResponse.job still return the full
+  // JobPostResponse. `hasFullDetail` tells the drawer whether the heavy fields were ever
+  // fetched, so "not yet loaded" (desc/reqs undefined) never collapses into the same value
+  // as "loaded and genuinely empty" (desc: "", reqs: []).
+  const hasFullDetail = Object.prototype.hasOwnProperty.call(dto, "description")
+    || Object.prototype.hasOwnProperty.call(dto, "requirements");
   return {
     id: dto.id,
     co: co.key,
     title: dto.title,
     location,
+    locations: locationsFromApi(dto),
     comp: formatComp(minK, maxK),
     compMin: minK ?? 0,          // 0 / 999 keep range filters from excluding unpriced jobs
     compMax: maxK ?? 999,
@@ -91,8 +184,9 @@ export function jobFromApi(dto, companies) {
     tags: [],                    // SYNTHETIC — contract has no free-form tags
     country: countryFromLocation(location),
     language: (Array.isArray(dto.language) && dto.language[0]) || "English",
-    desc: dto.description || "No description provided.",
-    reqs: Array.isArray(dto.requirements) ? dto.requirements : [],
+    hasFullDetail,
+    desc: hasFullDetail ? (dto.description || "") : undefined,
+    reqs: hasFullDetail ? (Array.isArray(dto.requirements) ? dto.requirements : []) : undefined,
     url: dto.url,
   };
 }
@@ -172,7 +266,7 @@ export function appFromApi(dto, store) {
   const jobId = dto.jobPostId ? String(dto.jobPostId) : "app-job-" + dto.id;
 
   if (store && store.companies && !store.companies[co.key]) {
-    store.companies[co.key] = { name: co.name, industry: "—", size: "—", hq: location, url: summary.url || "" };
+    store.companies[co.key] = { name: co.name, industry: null, size: null, hq: null, url: summary.url || "" };
   }
   if (store && Array.isArray(store.jobs) && !store.jobs.some((j) => j.id === jobId)) {
     store.jobs.push({
@@ -224,4 +318,58 @@ function timelineFromApi(timeline) {
   return [...timeline]
     .sort((a, b) => String(b.occurredAt).localeCompare(String(a.occurredAt)))
     .map((t) => ({ date: dateOnly(t.occurredAt), what: STATUS_PHRASE[t.status] || t.status }));
+}
+
+/* ── Saved filter presets (story #523) ──
+   UI preset state -> FilterValues (request body) and back. Presets persist search
+   dimensions only: keyword, company, location, employmentType, careerLevel, language,
+   postedWithin. `compensationMin`/`compensationMax`/`sort` are never written, and are
+   ignored when reading a preset back (ADR 0030 Decision 7). `POSTED_UI_TO_API` also backs
+   JobSearch.jsx's own search-request builder, so the search request and the preset writer
+   cannot drift apart (design note section 4.3). */
+export const POSTED_UI_TO_API = { any: undefined, today: "today", "3days": "3d", week: "week", month: "month" };
+export const POSTED_API_TO_UI = { today: "today", "3d": "3days", week: "week", month: "month" };
+
+/** UI preset state -> FilterValues (request body). Allow-list-shaped: only the seven
+ * persisted dimensions are ever read from `state`; comp/sort never leak through even if
+ * present on the input object. */
+export function filterValuesFromPreset(state = {}) {
+  const out = {};
+  const keyword = (state.query || "").trim();
+  if (keyword) out.keyword = state.query;
+  if (Array.isArray(state.companies) && state.companies.length) out.company = state.companies;
+  if (Array.isArray(state.locations) && state.locations.length) out.location = state.locations;
+  if (Array.isArray(state.employmentTypes) && state.employmentTypes.length) out.employmentType = state.employmentTypes;
+  if (Array.isArray(state.careerLevels) && state.careerLevels.length) out.careerLevel = state.careerLevels;
+  if (state.language && state.language !== "all") out.language = [state.language];
+  const postedWithin = POSTED_UI_TO_API[state.posted];
+  if (postedWithin !== undefined) out.postedWithin = postedWithin;
+  return out;
+}
+
+/** FilterValues -> UI preset state. Tolerates a null/absent/malformed `filters` object;
+ * every field defaults so the caller never sees `undefined`. Ignores compensationMin/
+ * compensationMax/sort even when present on the input (ADR 0030 Decision 7 / AC-523-36). */
+export function presetFromFilterValues(filters) {
+  const f = filters || {};
+  const arr = (v) => (Array.isArray(v) ? v : []);
+  const language = arr(f.language);
+  return {
+    query: f.keyword || "",
+    companies: arr(f.company),
+    locations: arr(f.location),
+    employmentTypes: arr(f.employmentType),
+    careerLevels: arr(f.careerLevel),
+    language: language.length ? language[0] : "all",
+    posted: POSTED_API_TO_UI[f.postedWithin] ?? "any",
+  };
+}
+
+/** SavedFilterResponse -> { id, name, state }, the shape SavedFiltersDropdown consumes. */
+export function savedFilterFromApi(dto) {
+  return {
+    id: dto.id,
+    name: dto.name,
+    state: presetFromFilterValues(dto.filters),
+  };
 }

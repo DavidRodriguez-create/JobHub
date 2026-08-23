@@ -36,6 +36,26 @@ public interface ApplicationRepository {
 
     List<MonthlyStatusCount> monthlyStatusCounts(UUID userId, OffsetDateTime since);
 
+    /**
+     * Returns all applications that:
+     * <ul>
+     *   <li>have a non-terminal status (applied, screening, interviewing, offered)</li>
+     *   <li>have {@code updatedAt} strictly before {@code cutoff}</li>
+     * </ul>
+     * Used by the internal ghosted-alert endpoint.
+     */
+    List<Application> findNonTerminalStaleApplications(OffsetDateTime cutoff);
+
+    /** True if the application with {@code applicationId} belongs to {@code userId}. */
+    boolean isOwnedByUser(UUID applicationId, UUID userId);
+
+    /**
+     * Returns the applications matching any of {@code ids}, in no guaranteed order. Ids with
+     * no matching row are simply absent from the result (no exception, no placeholder).
+     * Used by the internal application-summaries batch-resolve endpoint (ADR 0014).
+     */
+    List<Application> findAllByIds(List<UUID> ids);
+
     record MonthlyStatusCount(int year, int month, ApplicationStatus status, long count) {
     }
 }

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JobHub Interview Reminder</title>
+</head>
+<body style="margin:0;padding:0;background-color:#FAFAF7;font-family:Geist,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#0B1220;">
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FAFAF7;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+
+        <!-- Card wrapper -->
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+               style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:12px;overflow:hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding:32px 40px 24px 40px;border-bottom:1px solid #E6E6DE;text-align:center;">
+              <span style="font-size:24px;font-weight:700;color:#0B1220;letter-spacing:-0.5px;">JobHub</span>
+              <p style="margin:8px 0 0 0;font-size:15px;color:#2B3344;">Interview Reminder</p>
+            </td>
+          </tr>
+
+          <!-- Content card -->
+          <tr>
+            <td style="padding:24px 40px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                     style="border:1px solid #E6E6DE;border-radius:8px;overflow:hidden;">
+                <tr>
+                  <td style="padding:20px 24px;background-color:#FFFFFF;">
+                    <p style="margin:0 0 8px 0;font-size:17px;font-weight:600;color:#0B1220;">
+                      {label}
+                    </p>
+                    <p style="margin:0 0 4px 0;font-size:14px;color:#2B3344;">
+                      Date: {stepDate}
+                    </p>
+                    {#if company}
+                    <p style="margin:0 0 4px 0;font-size:14px;color:#2B3344;">
+                      Company: {company}
+                    </p>
+                    {/if}
+                    <p style="margin:0 0 20px 0;font-size:13px;color:#5A6378;">
+                      Reminder: {offsetLabel}
+                    </p>
+                    <!-- CTA button -->
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="border-radius:8px;background-color:#2950E3;">
+                          <a href="{jobhubBaseUrl}/applications/{applicationId}"
+                             style="display:inline-block;padding:10px 20px;font-size:14px;font-weight:600;color:#FFFFFF;text-decoration:none;border-radius:8px;">
+                            View application
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 40px 32px 40px;border-top:1px solid #E6E6DE;text-align:center;">
+              <p style="margin:0 0 8px 0;font-size:12px;color:#5A6378;">
+                &copy; {currentYear} JobHub. All rights reserved.
+              </p>
+              <p style="margin:0;font-size:12px;color:#5A6378;">
+                You are receiving this email because "Interview reminder emails" is enabled on your account.
+                To update your preferences, go to
+                <a href="{jobhubBaseUrl}/settings/notifications"
+                   style="color:#2950E3;text-decoration:underline;">Settings, Notifications</a>.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!-- /Card wrapper -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

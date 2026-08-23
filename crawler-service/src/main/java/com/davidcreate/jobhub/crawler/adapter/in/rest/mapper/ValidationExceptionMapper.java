@@ -16,7 +16,7 @@ public class ValidationExceptionMapper
 
         return Response.status(Response.Status.BAD_REQUEST)
                 .entity(new ErrorResponse(
-                        400,
+                        "Validation Error",
                         ex.getMessage()))
                 .build();
     }

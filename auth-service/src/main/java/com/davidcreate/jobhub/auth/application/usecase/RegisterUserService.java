@@ -2,7 +2,6 @@ package com.davidcreate.jobhub.auth.application.usecase;
 
 import com.davidcreate.jobhub.auth.application.port.in.RegisterUserCommand;
 import com.davidcreate.jobhub.auth.application.port.in.RegisterUserUseCase;
-import com.davidcreate.jobhub.auth.application.port.in.SendEmailVerificationUseCase;
 import com.davidcreate.jobhub.auth.application.port.out.PasswordHasher;
 import com.davidcreate.jobhub.auth.application.port.out.UserRepository;
 import com.davidcreate.jobhub.auth.domain.entity.User;
@@ -20,7 +19,7 @@ public class RegisterUserService implements RegisterUserUseCase {
 
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
-    private final SendEmailVerificationUseCase sendEmailVerification;
+    private final EmailVerificationService emailVerificationService;
 
     @Override
     @Transactional
@@ -47,7 +46,7 @@ public class RegisterUserService implements RegisterUserUseCase {
                 .build();
 
         User saved = userRepository.save(toSave);
-        sendEmailVerification.sendFor(saved);
+        emailVerificationService.sendFor(saved);
         return saved;
     }
 }

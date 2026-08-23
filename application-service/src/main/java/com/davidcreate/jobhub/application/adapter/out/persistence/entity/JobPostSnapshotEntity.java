@@ -35,6 +35,9 @@ public class JobPostSnapshotEntity extends PanacheEntityBase {
     @Column(name = "company")
     public String company;
 
+    @Column(name = "company_logo_url")
+    public String companyLogoUrl;
+
     @Column(name = "url")
     public String url;
 

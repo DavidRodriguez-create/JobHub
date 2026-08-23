@@ -7,8 +7,11 @@ import com.davidcreate.jobhub.auth.domain.entity.User;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
+import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,6 +19,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserPanacheRepository
         implements UserRepository, PanacheRepositoryBase<UserEntity, UUID> {
+
+    private static final Logger LOG = Logger.getLogger(UserPanacheRepository.class);
 
     private final UserMapper mapper;
 
@@ -30,12 +35,24 @@ public class UserPanacheRepository
     }
 
     @Override
+    public List<User> findByIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return find("id in ?1", List.copyOf(ids)).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public User save(User user) {
         if (user.getId() != null) {
             UserEntity existing = findByIdOptional(user.getId()).orElse(null);
             if (existing != null) {
                 mapper.updateEntity(existing, user);
                 persistAndFlush(existing);
+                LOG.infof("UPDATE auth.user id=%s email=%s emailVerified=%s", existing.id, existing.email,
+                        existing.emailVerified);
                 return mapper.toDomain(existing);
             }
         }
@@ -46,11 +63,22 @@ public class UserPanacheRepository
         }
         entity.updatedAt = now;
         persistAndFlush(entity);
+        LOG.infof("INSERT auth.user id=%s email=%s emailVerified=%s", entity.id, entity.email, entity.emailVerified);
         return mapper.toDomain(entity);
     }
 
     @Override
     public void removeById(UUID id) {
-        delete("id", id);
+        long deleted = delete("id", id);
+        LOG.infof("DELETE auth.user id=%s -> %d row(s)", id, deleted);
+    }
+
+    @Override
+    public List<UUID> findUserIdsWithoutTwoFactorSince(OffsetDateTime since) {
+        return getEntityManager()
+                .createQuery("select u.id from UserEntity u where u.twoFactorEnabled = false and u.createdAt <= :since",
+                        UUID.class)
+                .setParameter("since", since)
+                .getResultList();
     }
 }

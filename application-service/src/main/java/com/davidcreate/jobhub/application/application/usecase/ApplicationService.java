@@ -15,10 +15,13 @@ import com.davidcreate.jobhub.application.application.port.out.UserJobPostReposi
 import com.davidcreate.jobhub.application.application.port.out.VerificationGateway;
 import com.davidcreate.jobhub.application.domain.entity.Application;
 import com.davidcreate.jobhub.application.domain.entity.ApplicationStats;
+import com.davidcreate.jobhub.application.domain.entity.ApplicationSummaryView;
 import com.davidcreate.jobhub.application.domain.entity.ApplicationView;
 import com.davidcreate.jobhub.application.domain.entity.JobPostSnapshot;
 import com.davidcreate.jobhub.application.domain.entity.MonthlyStats;
+import com.davidcreate.jobhub.application.domain.entity.StaleApplicationView;
 import com.davidcreate.jobhub.application.domain.entity.UserJobPost;
+import com.davidcreate.jobhub.application.domain.exception.AlreadyTerminalException;
 import com.davidcreate.jobhub.application.domain.exception.ApplicationNotFoundException;
 import com.davidcreate.jobhub.application.domain.exception.CrawledJobImmutableException;
 import com.davidcreate.jobhub.application.domain.exception.DuplicateApplicationException;
@@ -35,6 +38,7 @@ import lombok.RequiredArgsConstructor;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -235,6 +239,62 @@ public class ApplicationService implements ApplicationUseCase {
         return history;
     }
 
+    @Override
+    public boolean isOwnedByUser(UUID applicationId, UUID userId) {
+        return applicationRepository.isOwnedByUser(applicationId, userId);
+    }
+
+    @Override
+    public List<StaleApplicationView> listStaleApplications(int days) {
+        OffsetDateTime cutoff = OffsetDateTime.now(ZoneOffset.UTC).minusDays(days);
+        List<Application> staleApps = applicationRepository.findNonTerminalStaleApplications(cutoff);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        return staleApps.stream()
+                .map(app -> {
+                    JobInfo job = resolveJob(app);
+                    int daysSince = (int) ChronoUnit.DAYS.between(
+                            app.getUpdatedAt().toLocalDate(), today);
+                    return new StaleApplicationView(
+                            app.getId(),
+                            app.getUserId(),
+                            job.title(),
+                            job.company(),
+                            app.getStatus(),
+                            daysSince);
+                })
+                .toList();
+    }
+
+    @Override
+    public List<ApplicationSummaryView> resolveApplicationSummaries(List<UUID> ids) {
+        List<UUID> distinctIds = ids.stream().distinct().toList();
+        List<Application> found = applicationRepository.findAllByIds(distinctIds);
+        return found.stream()
+                .map(app -> {
+                    JobInfo job = resolveJob(app);
+                    return new ApplicationSummaryView(app.getId(), job.company(), job.title(), job.companyLogoUrl());
+                })
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public Application updateApplicationStatusInternal(UUID applicationId, ApplicationStatus status) {
+        Application app = applicationRepository.findOneById(applicationId)
+                .orElseThrow(() -> new ApplicationNotFoundException(applicationId));
+        if (app.getStatus().isTerminal()) {
+            throw new AlreadyTerminalException(applicationId);
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime endedAt = status.isTerminal() ? now : null;
+        Application updated = applicationRepository.save(app.toBuilder()
+                .status(status)
+                .endedAt(endedAt)
+                .build());
+        timelineRepository.append(applicationId, status, now);
+        return updated;
+    }
+
     private UserJobPost createUserJobPost(UUID callerId, JobDetailsCommand details) {
         boolean hasTitle = details.title() != null && !details.title().isBlank();
         boolean hasUrl = details.url() != null && !details.url().isBlank();
@@ -257,6 +317,8 @@ public class ApplicationService implements ApplicationUseCase {
                         .jobPostId(view.id())
                         .contentHash(hash)
                         .title(view.title())
+                        .company(blankToNull(view.companyName()))
+                        .companyLogoUrl(blankToNull(view.companyLogoUrl()))
                         .url(view.url())
                         .location(view.location())
                         .build()));
@@ -266,11 +328,11 @@ public class ApplicationService implements ApplicationUseCase {
         if (app.getJobPostSnapshotId() != null) {
             JobPostSnapshot s = snapshotRepository.findOneById(app.getJobPostSnapshotId())
                     .orElseThrow(() -> new IllegalStateException("snapshot missing for application " + app.getId()));
-            return new JobInfo(s.getTitle(), s.getCompany(), s.getLocation(), s.getUrl());
+            return new JobInfo(s.getTitle(), s.getCompany(), s.getLocation(), s.getUrl(), s.getCompanyLogoUrl());
         }
         UserJobPost u = userJobPostRepository.findOneById(app.getUserJobPostId())
                 .orElseThrow(() -> new UserJobPostNotFoundException(app.getUserJobPostId()));
-        return new JobInfo(u.getTitle(), u.getCompany(), u.getLocation(), u.getUrl());
+        return new JobInfo(u.getTitle(), u.getCompany(), u.getLocation(), u.getUrl(), null);
     }
 
     private Application loadOwned(UUID callerId, UUID applicationId) {

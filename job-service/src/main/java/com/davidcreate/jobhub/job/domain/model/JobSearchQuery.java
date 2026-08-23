@@ -14,6 +14,7 @@ public class JobSearchQuery {
     private final List<String> languages;
     private final List<String> companies;
     private final List<EmploymentType> employmentTypes;
+    private final List<CareerLevel> careerLevels;
     private final Integer compensationMin;
     private final Integer compensationMax;
     private final PostedWithin postedWithin;

@@ -1,0 +1,16 @@
+# Stage 1: Build native image
+FROM quay.io/quarkus/ubi-quarkus-graalvm:latest AS builder
+WORKDIR /project
+COPY . .
+RUN mvn -DskipTests clean package -Pnative -Dquarkus.native.container-build=true
+
+# Stage 2: Runtime
+FROM quay.io/quarkus/ubi-minimal:latest
+WORKDIR /work/
+RUN chown 1001 /work \
+    && chmod "g+rwX" /work \
+    && chown 1001:root /work
+COPY --from=builder --chown=1001:root /project/target/*-runner ./app
+EXPOSE 8084
+USER 1001
+CMD ["./app"]

@@ -1,0 +1,110 @@
+openapi: 3.0.3
+info:
+  title: OpenAI-compatible Chat Completions API (external)
+  version: 1.0.0
+  description: |
+    Minimal contract for the subset of the OpenAI chat-completions API that
+    JobHub consumes (POST /v1/chat/completions). This is an EXTERNAL API we
+    call, not one we serve — it lives here so the request/response models are
+    generated from a single source of truth, like every other contract in this
+    module. This shape is shared by OpenAI and OpenAI-compatible providers
+    (DeepSeek, Groq, Together, Mistral, etc.).
+
+    Models only (generateApis=false): the consuming service declares the
+    @RegisterRestClient-free interface in-module (OpenAiClient) and references
+    these models. The operation is described here only to document the
+    endpoint and anchor the schemas.
+
+paths:
+  /v1/chat/completions:
+    post:
+      operationId: createChatCompletion
+      summary: Create a chat completion
+      x-implementation-status: existing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+      responses:
+        '200':
+          description: The model's reply
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+
+components:
+  schemas:
+
+    ChatCompletionRequest:
+      type: object
+      required: [model, messages]
+      properties:
+        model:
+          type: string
+          description: ID of the model to use, e.g. "deepseek-chat"
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatCompletionMessage'
+        temperature:
+          type: number
+          format: double
+          description: Sampling temperature; 0 for deterministic extraction
+        response_format:
+          $ref: '#/components/schemas/ChatCompletionResponseFormat'
+
+    ChatCompletionMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          description: 'One of: system, user, assistant'
+        content:
+          type: string
+
+    ChatCompletionResponseFormat:
+      type: object
+      description: Set type to "json_object" to force a valid JSON response
+      properties:
+        type:
+          type: string
+          description: 'e.g. "json_object"'
+
+    ChatCompletionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        choices:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatCompletionChoice'
+        usage:
+          $ref: '#/components/schemas/ChatCompletionUsage'
+
+    ChatCompletionChoice:
+      type: object
+      properties:
+        index:
+          type: integer
+        message:
+          $ref: '#/components/schemas/ChatCompletionMessage'
+        finish_reason:
+          type: string
+
+    ChatCompletionUsage:
+      type: object
+      properties:
+        prompt_tokens:
+          type: integer
+          description: Tokens in the request prompt (input tokens)
+        completion_tokens:
+          type: integer
+          description: Tokens in the generated completion (output tokens)
+        total_tokens:
+          type: integer
+          description: Total tokens billed for the request

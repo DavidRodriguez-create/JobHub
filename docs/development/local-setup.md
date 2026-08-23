@@ -40,6 +40,7 @@ Then open:
 | job-service | http://localhost:8081 |
 | auth-service | http://localhost:8082/auth |
 | application-service | http://localhost:8083 |
+| notification-service | http://localhost:8084 |
 | PostgreSQL | localhost:5432 |
 
 The database schema and seed data (including **demo users** for local testing) are applied
@@ -52,8 +53,10 @@ podman compose -f podman-compose.yml down -v        # stop + wipe the DB volume
 ```
 
 !!! tip "Re-applying schema changes"
-    Seeds and DDL only run on a **fresh** data volume. After editing schema SQL, run
-    `down -v` then `up` so the init scripts re-run.
+    Seeds and DDL only run on a **fresh** data volume. After editing schema SQL, `down -v` then
+    `up` so the init scripts re-run — fine here since local dev data is disposable. If you need to
+    keep the data in the volume (a shared or long-lived environment), don't wipe it: see
+    [Deployment](../deployment.md) for how to hand-apply just the new migration file instead.
 
 ## Option B — Dev mode (hot reload)
 
@@ -68,19 +71,57 @@ podman run -d --name jobhub-db \
 # A service in dev mode (separate terminal each)
 mvn -pl job-service quarkus:dev
 mvn -pl crawler-service quarkus:dev
+mvn -pl notification-service quarkus:dev
 ```
 
 Swagger UI is available in dev mode at `http://localhost:<port>/swagger`.
 
-## Running this documentation locally
+## Data maintenance
 
-The docs are MkDocs Material with a plugin for live OpenAPI. Build the image once, then serve —
-**from the repo root** so the OpenAPI hook can see `api-contracts/`:
+Your data **survives service rebuilds and restarts by default** — you have to ask for it to be
+wiped. The database lives in a named volume (`pgdata`) on the `jobhub-db` container, which is
+completely separate from the service containers. Rebuilding or updating a service swaps that
+service's image; it never touches `pgdata`.
+
+### Updating / reloading services (data kept)
+
+After changing service code, repackage and bring the stack back up — only changed images are
+rebuilt and recreated, the DB is left alone:
 
 ```bash
-podman build -t jobhub-docs docs/
-podman run --rm -p 8000:8000 -v ${PWD}:/docs jobhub-docs   # → http://localhost:8000
+mvn -DskipTests package                                   # or: -pl job-service for just one
+podman compose -f podman-compose.yml up -d --build        # rebuilds changed services only
+podman compose -f podman-compose.yml up -d --build job-service   # rebuild a single service
 ```
 
-Edits to `docs/**` or to the contracts in `api-contracts/` show up on rebuild — the
-[API reference](../api/auth.md) is generated from the contracts, never hand-copied.
+Lighter options when you don't need a rebuild:
+
+```bash
+podman compose -f podman-compose.yml restart crawler-service   # restart one service
+podman compose -f podman-compose.yml down                      # stop everything (volumes kept)
+podman compose -f podman-compose.yml up -d                     # start again, data intact
+```
+
+### What persists vs what gets wiped
+
+| Command | DB data (`pgdata`) | Notes |
+|---------|--------------------|-------|
+| `up -d --build`, `restart`, `down` then `up` | **kept** | normal update/reload cycle |
+| `down -v` | **wiped** | also wipes `ollama_models` + `ui_node_modules` |
+
+!!! danger "`down -v` is the only thing that deletes your data"
+    The `-v` removes **all** named volumes. Besides the DB, that drops the pulled LLM model —
+    re-pull it after the next `up`: `podman exec jobhub-ollama ollama pull qwen2.5:1.5b`.
+
+!!! note "Seeds don't re-run on a reload"
+    `db/init/` + `db/seeds/` execute **only on a fresh `pgdata` volume**. Updating services (or
+    editing a seed file) won't re-apply them — that only happens after a `down -v` + `up`.
+
+### Resetting just the data
+
+To start from clean seed data without rebuilding service code:
+
+```bash
+podman compose -f podman-compose.yml down -v
+podman compose -f podman-compose.yml up -d
+```

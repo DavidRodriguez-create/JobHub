@@ -1,10 +1,15 @@
 package com.davidcreate.jobhub.auth.component_tests;
 
+import com.davidcreate.jobhub.auth.application.port.out.VerificationNotifier;
+import com.davidcreate.jobhub.auth.domain.valueobject.VerificationAction;
+import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import java.util.Map;
 import java.util.UUID;
@@ -12,6 +17,8 @@ import java.util.UUID;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 
 /**
  * Component tests for the auth-service REST surface, exercising the contract
@@ -19,7 +26,11 @@ import static org.hamcrest.Matchers.notNullValue;
  * sets {@code quarkus.http.root-path=/auth}, so the contract paths
  * {@code /register}, {@code /login}, {@code /account} become {@code /auth/...}.
  *
- * <p>Server-error (500) cases live in {@link AuthResourceFailureComponentTest}.
+ * VerificationNotifier is mocked at class level so every test that calls
+ * {@code register()} can capture the verification code without needing SMTP.
+ * The {@code login()} helper verifies the email before logging in.
+ *
+ * Server-error (500) cases live in {@link AuthResourceFailureComponentTest}.
  */
 @QuarkusTest
 @DisplayName("Auth Resource Component Tests")
@@ -28,11 +39,17 @@ class AuthResourceComponentTest {
     private static final String REGISTER = "/register";
     private static final String LOGIN = "/login";
     private static final String ACCOUNT = "/account";
+    private static final String VERIFY_EMAIL_PATH = ACCOUNT + "/verify-email";
+    private static final String RESEND_PATH = ACCOUNT + "/resend-verification";
+
+    @InjectMock
+    VerificationNotifier notifier;
 
     private String uniqueEmail;
 
     @BeforeEach
     void setUp() {
+        Mockito.reset(notifier);
         uniqueEmail = "user-" + UUID.randomUUID() + "@example.com";
     }
 
@@ -41,7 +58,7 @@ class AuthResourceComponentTest {
     class Register {
 
         @Test
-        @DisplayName("✓ valid request → 201 + AccountResponse body")
+        @DisplayName("✓ valid request → 201 + RegisterResponse{account, verificationRequired:true}")
         void testRegisterSuccess() {
             given()
                     .contentType("application/json")
@@ -53,10 +70,11 @@ class AuthResourceComponentTest {
                     .when().post(REGISTER)
                     .then()
                     .statusCode(201)
-                    .body("email", equalTo(uniqueEmail))
-                    .body("firstName", equalTo("Alice"))
-                    .body("emailVerified", equalTo(false))
-                    .body("id", notNullValue());
+                    .body("account.email", equalTo(uniqueEmail))
+                    .body("account.firstName", equalTo("Alice"))
+                    .body("account.emailVerified", equalTo(false))
+                    .body("account.id", notNullValue())
+                    .body("verificationRequired", equalTo(true));
         }
 
         @Test
@@ -91,9 +109,9 @@ class AuthResourceComponentTest {
     class Login {
 
         @Test
-        @DisplayName("✓ valid credentials → 200 + LoginResponse (token + account)")
+        @DisplayName("✓ valid credentials (verified) → 200 + LoginResponse (token + account)")
         void testLoginSuccess() {
-            register(uniqueEmail, "test1234");
+            registerAndVerify(uniqueEmail, "test1234");
 
             given()
                     .contentType("application/json")
@@ -109,7 +127,7 @@ class AuthResourceComponentTest {
         @Test
         @DisplayName("✗ wrong password → 401")
         void testLoginWrongPassword() {
-            register(uniqueEmail, "test1234");
+            registerAndVerify(uniqueEmail, "test1234");
 
             given()
                     .contentType("application/json")
@@ -143,7 +161,7 @@ class AuthResourceComponentTest {
         @Test
         @DisplayName("✓ with token → 200 + caller profile")
         void testGetAccountWithToken() {
-            register(uniqueEmail, "test1234");
+            registerAndVerify(uniqueEmail, "test1234");
             String token = login(uniqueEmail, "test1234");
 
             given()
@@ -162,7 +180,7 @@ class AuthResourceComponentTest {
         @Test
         @DisplayName("✓ updates firstName, visible on subsequent GET")
         void testPatchAccount() {
-            register(uniqueEmail, "test1234");
+            registerAndVerify(uniqueEmail, "test1234");
             String token = login(uniqueEmail, "test1234");
 
             given()
@@ -200,7 +218,7 @@ class AuthResourceComponentTest {
         @Test
         @DisplayName("✓ correct current password → 204; next login works only with new password")
         void testChangePasswordRotates() {
-            register(uniqueEmail, "test1234");
+            registerAndVerify(uniqueEmail, "test1234");
             String token = login(uniqueEmail, "test1234");
 
             given()
@@ -224,7 +242,7 @@ class AuthResourceComponentTest {
         @Test
         @DisplayName("✗ wrong current password → 401")
         void testChangePasswordWrongCurrent() {
-            register(uniqueEmail, "test1234");
+            registerAndVerify(uniqueEmail, "test1234");
             String token = login(uniqueEmail, "test1234");
 
             given()
@@ -251,12 +269,12 @@ class AuthResourceComponentTest {
     class Verification {
 
         @Test
-        @DisplayName("POST /auth/account/verify-email ✗ bad token → 400")
-        void verifyEmailBadToken() {
+        @DisplayName("POST /auth/account/verify-email ✗ wrong code for unknown email → 400")
+        void verifyEmailBadRequest() {
             given()
                     .contentType("application/json")
-                    .body(Map.of("token", "bogus-" + UUID.randomUUID()))
-                    .when().post(ACCOUNT + "/verify-email")
+                    .body(Map.of("email", "nobody-" + UUID.randomUUID() + "@example.com", "code", "000000"))
+                    .when().post(VERIFY_EMAIL_PATH)
                     .then().statusCode(400);
         }
 
@@ -266,7 +284,7 @@ class AuthResourceComponentTest {
             given()
                     .contentType("application/json")
                     .body(Map.of("email", "nobody-" + UUID.randomUUID() + "@example.com"))
-                    .when().post(ACCOUNT + "/resend-verification")
+                    .when().post(RESEND_PATH)
                     .then().statusCode(204);
         }
 
@@ -276,7 +294,7 @@ class AuthResourceComponentTest {
             given()
                     .contentType("application/json")
                     .body(Map.of("email", "not-an-email"))
-                    .when().post(ACCOUNT + "/resend-verification")
+                    .when().post(RESEND_PATH)
                     .then().statusCode(400);
         }
 
@@ -301,13 +319,34 @@ class AuthResourceComponentTest {
         }
     }
 
-    private void register(String email, String password) {
+    // --- helpers ---
+
+    /** Register only (201 expected). Notifier mock must be set up by the caller. */
+    private void registerOnly(String email, String password) {
         given().contentType("application/json")
-                .body(Map.of(
-                        "firstName", "Test", "lastName", "User",
+                .body(Map.of("firstName", "Test", "lastName", "User",
                         "email", email, "password", password))
                 .when().post(REGISTER)
                 .then().statusCode(201);
+    }
+
+    /**
+     * Register + capture the VERIFY_EMAIL code + verify the account.
+     * After this call the account is email-verified and ready for login.
+     */
+    private void registerAndVerify(String email, String password) {
+        registerOnly(email, password);
+
+        ArgumentCaptor<String> codeCap = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(notifier).sendActionCode(anyString(), eq(VerificationAction.VERIFY_EMAIL), codeCap.capture());
+        String code = codeCap.getValue();
+
+        given().contentType("application/json")
+                .body(Map.of("email", email, "code", code))
+                .when().post(VERIFY_EMAIL_PATH)
+                .then().statusCode(200);
+
+        Mockito.reset(notifier);
     }
 
     private String login(String email, String password) {

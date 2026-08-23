@@ -1,7 +1,17 @@
 import React from "react";
+import {
+  DndContext, useDraggable, useDroppable, PointerSensor, TouchSensor, useSensor, useSensors,
+  pointerWithin,
+} from "@dnd-kit/core";
 import Icon from "../components/Icon.jsx";
 import DATA from "../data/mockData.js";
 import * as UI from "../components/ui.jsx";
+import { CustomReminderList } from "../components/CustomReminderList.jsx";
+import { CustomReminderForm } from "../components/CustomReminderForm.jsx";
+import { NotificationIdentity } from "../components/NotificationIdentity.jsx";
+import { updateApplicationStatus } from "../api/applications.js";
+import { statusToApi, statusToUi } from "../api/mappers.js";
+import { ApiError } from "../api/client.js";
 // JobHub — Applications screen (Kanban + List + Detail)
 const { Button, Input, Field, Toggle, StatusPill, CoLogo, Avatar, Card, Stat, Modal, Empty, Tabs, STATUS_LABEL } = UI;
 
@@ -18,7 +28,7 @@ const CATEGORIES = [
 const NOTES_MAX = 2000;
 
 /* ─── Applications Screen ─── */
-function ApplicationsScreen({ openApp, openSearch, onAddApp }) {
+function ApplicationsScreen({ openApp, openSearch, onAddApp, onLogout }) {
   const STORAGE_KEY = "jobhub_app_view";
   const [view, setView] = React.useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) || "kanban"; } catch { return "kanban"; }
@@ -27,6 +37,11 @@ function ApplicationsScreen({ openApp, openSearch, onAddApp }) {
   const [selected, setSelected] = React.useState(new Set());
   const [sortCol, setSortCol] = React.useState("appliedOn");
   const [sortDir, setSortDir] = React.useState("desc");
+  // Bumped whenever the Kanban DnD path mutates an application's status in place
+  // (optimistic update / rollback), so the memoized buckets below recompute even
+  // though DATA.applications.length itself did not change.
+  const [boardVersion, setBoardVersion] = React.useState(0);
+  const bumpBoard = () => setBoardVersion((v) => v + 1);
 
   const changeView = (v) => { setView(v); try { localStorage.setItem(STORAGE_KEY, v); } catch {} };
 
@@ -46,14 +61,14 @@ function ApplicationsScreen({ openApp, openSearch, onAddApp }) {
     const c = { all: DATA.applications.length };
     CATEGORIES.forEach((cat) => { c[cat.id] = DATA.applications.filter((a) => cat.statuses.includes(a.status)).length; });
     return c;
-  }, [DATA.applications.length]);
+  }, [DATA.applications.length, boardVersion]);
 
   // Apps visible under the current filter — drives BOTH the Kanban and the List.
   const visibleApps = React.useMemo(() => {
     if (isAll) return DATA.applications;
     const allowed = new Set(CATEGORIES.filter((c) => selected.has(c.id)).flatMap((c) => c.statuses));
     return DATA.applications.filter((a) => allowed.has(a.status));
-  }, [selected, isAll, DATA.applications.length]);
+  }, [selected, isAll, DATA.applications.length, boardVersion]);
 
   const inCat = (id) => (a) => CATEGORIES.find((c) => c.id === id).statuses.includes(a.status);
   const buckets = {
@@ -118,11 +133,13 @@ function ApplicationsScreen({ openApp, openSearch, onAddApp }) {
         </div>
 
         {view === "kanban" ? (
-          <div className="kanban">
-            {CATEGORIES.filter((c) => isAll || selected.has(c.id)).map((c) => (
-              <KanbanCol key={c.id} name={c.label} color={c.color} apps={buckets[c.id]} openApp={openApp} />
-            ))}
-          </div>
+          <KanbanBoard
+            categories={CATEGORIES.filter((c) => isAll || selected.has(c.id))}
+            buckets={buckets}
+            openApp={openApp}
+            onLogout={onLogout}
+            onBoardChange={bumpBoard}
+          />
         ) : (
           <SortableListView apps={sorted} openApp={openApp} sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
         )}
@@ -131,34 +148,319 @@ function ApplicationsScreen({ openApp, openSearch, onAddApp }) {
   );
 }
 
-function KanbanCol({ name, color, apps, openApp }) {
+/* ─── Kanban Drag-and-Drop board (story #152) ───
+   Drop-target ids: a column's own id ("applied" | "screening" | "interview" | "offer" | "closed")
+   or, only while a drag is hovering the Closed column, one of the 3 fanned-out sub-zone ids
+   ("closed:rejected" | "closed:ghosted" | "closed:withdrawn"). The Closed column never renders
+   the sub-zones outside of an active drag-over (3.2 in the spec): the fan-out is purely a
+   render-time decision driven by drag state, not a DOM restructure of the column itself.
+   `accepted` has no drop target here at all (AC-10) — StatusPicker remains the only path. */
+function KanbanBoard({ categories, buckets, openApp, onLogout, onBoardChange }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
+  );
+
+  const [activeApp, setActiveApp] = React.useState(null);
+  const [overId, setOverId] = React.useState(null);
+  const [pendingMove, setPendingMove] = React.useState(null); // { app, fromStatus, targetUiStatus }
+  const [errorMsg, setErrorMsg] = React.useState(null);
+
+  const visibleColumnIds = new Set(categories.map((c) => c.id));
+  const closedVisible = visibleColumnIds.has("closed");
+  const closedFannedOut = closedVisible && (overId === "closed" || (typeof overId === "string" && overId.startsWith("closed:")));
+
+  const resetDragUi = () => { setActiveApp(null); setOverId(null); };
+
+  function resolveTargetUiStatus(dropId) {
+    if (dropId === "closed:rejected") return "rejected";
+    if (dropId === "closed:ghosted") return "ghosted";
+    if (dropId === "closed:withdrawn") return "withdrawn";
+    if (dropId === "closed") return null; // dropped on Closed's general area — rejected, not a status
+    return dropId; // applied | screening | interview | offer
+  }
+
+  function isBackwardMove(fromUiStatus, toUiStatus) {
+    const fromIsExit = STATUS_EXITS.some((s) => s.key === fromUiStatus);
+    const toIsExit = STATUS_EXITS.some((s) => s.key === toUiStatus);
+    if (fromIsExit) return true; // re-opening from Closed (pipeline or another exit) is always backward
+    if (toIsExit) return false; // pipeline -> exit is a forward exit, never backward
+    const fromIdx = FLOW_INDEX[fromUiStatus] ?? -1;
+    const toIdx = FLOW_INDEX[toUiStatus] ?? -1;
+    return fromIdx >= 0 && toIdx >= 0 && toIdx < fromIdx;
+  }
+
+  async function applyStatusChange(app, targetUiStatus) {
+    const previousStatus = app.status;
+    app.status = targetUiStatus; // optimistic
+    onBoardChange();
+    if (!app.apiId) return; // mock-mode entry: no backend to sync, optimistic value stands
+    try {
+      await updateApplicationStatus(app.apiId, statusToApi(targetUiStatus));
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        onLogout?.();
+        return;
+      }
+      app.status = previousStatus; // rollback
+      onBoardChange();
+      setErrorMsg("Couldn't update status. Try again.");
+    }
+  }
+
+  function handleDragStart(event) {
+    const app = DATA.applications.find((a) => a.id === event.active.id);
+    setActiveApp(app || null);
+    setErrorMsg(null);
+  }
+
+  function handleDragOver(event) {
+    setOverId(event.over ? event.over.id : null);
+  }
+
+  function handleDragCancel() {
+    resetDragUi();
+  }
+
+  function handleDragEnd(event) {
+    const app = activeApp;
+    const dropId = event.over ? event.over.id : null;
+    resetDragUi();
+    if (!app || !dropId) return; // cancelled: released outside any drop target
+
+    const targetUiStatus = resolveTargetUiStatus(dropId);
+    if (!targetUiStatus) return; // Closed general area (no sub-zone resolved) — rejected drop
+    if (targetUiStatus === app.status) return; // same-status no-op (incl. same column / same position)
+
+    if (isBackwardMove(app.status, targetUiStatus)) {
+      setPendingMove({ app, fromStatus: app.status, targetUiStatus });
+      return;
+    }
+    applyStatusChange(app, targetUiStatus);
+  }
+
+  function confirmPendingMove() {
+    if (!pendingMove) return;
+    applyStatusChange(pendingMove.app, pendingMove.targetUiStatus);
+    setPendingMove(null);
+  }
+
+  function cancelPendingMove() {
+    setPendingMove(null);
+  }
+
   return (
-    <div className="kanban-col">
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragCancel={handleDragCancel}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="kanban">
+        {categories.map((c) => (
+          <DroppableColumn
+            key={c.id}
+            id={c.id}
+            name={c.label}
+            color={c.color}
+            apps={buckets[c.id]}
+            openApp={openApp}
+            isClosedColumn={c.id === "closed"}
+            fannedOut={c.id === "closed" && closedFannedOut}
+            overId={overId}
+            activeApp={activeApp}
+            allCategoryIds={categories.map((cat) => cat.id)}
+            onKeyboardMove={(app, targetId) => {
+              const targetUiStatus = resolveTargetUiStatus(targetId);
+              if (!targetUiStatus || targetUiStatus === app.status) return;
+              if (isBackwardMove(app.status, targetUiStatus)) {
+                setPendingMove({ app, fromStatus: app.status, targetUiStatus });
+              } else {
+                applyStatusChange(app, targetUiStatus);
+              }
+            }}
+          />
+        ))}
+      </div>
+
+      {pendingMove && (
+        <div role="alertdialog" aria-modal="true" aria-label="Confirm status change"
+          style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 1000,
+            background: "var(--color-surface)", border: "1px solid var(--color-warning-border)",
+            borderRadius: 10, boxShadow: "var(--shadow-md)", padding: 14, minWidth: 320,
+            display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Icon name="info" size={14} style={{ color: "var(--color-warning)", flexShrink: 0 }} />
+            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-ink)" }}>
+              Move back to {STATUS_LABEL[pendingMove.targetUiStatus]}?
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--color-ink-2)", lineHeight: 1.5 }}>
+            This will move the application from {STATUS_LABEL[pendingMove.fromStatus]} back to{" "}
+            {STATUS_LABEL[pendingMove.targetUiStatus]}. Progress after this stage may be lost.
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <Button variant="ghost" size="sm" onClick={cancelPendingMove}>Cancel</Button>
+            <Button variant="primary" size="sm" onClick={confirmPendingMove}>Confirm</Button>
+          </div>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div role="alert" style={{ position: "fixed", bottom: 24, right: 24, zIndex: 1000,
+          background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)",
+          color: "var(--color-danger)", borderRadius: 8, padding: "10px 14px", fontSize: 12,
+          display: "flex", alignItems: "center", gap: 8 }}>
+          <Icon name="alert-circle" size={14} />
+          {errorMsg}
+        </div>
+      )}
+    </DndContext>
+  );
+}
+
+// Targets a card can move to via the keyboard move-mode scheme: the visible pipeline columns,
+// in order, followed by the 3 Closed sub-zones (AC-19, 3.6). Accepted is never included (AC-10).
+function keyboardTargets(allCategoryIds) {
+  const targets = [];
+  ["applied", "screening", "interview", "offer"].forEach((id) => {
+    if (allCategoryIds.includes(id)) targets.push({ id, label: CATEGORIES.find((c) => c.id === id).label });
+  });
+  if (allCategoryIds.includes("closed")) {
+    targets.push({ id: "closed:rejected", label: "Rejected" });
+    targets.push({ id: "closed:ghosted", label: "Ghosted" });
+    targets.push({ id: "closed:withdrawn", label: "Withdrawn" });
+  }
+  return targets;
+}
+
+function DroppableColumn({ id, name, color, apps, openApp, isClosedColumn, fannedOut, overId, activeApp, allCategoryIds, onKeyboardMove }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <div ref={setNodeRef} className="kanban-col" data-over={isOver || undefined} data-rect-zone={id}>
       <div className="kanban-head">
         <span className={"status " + color} style={{ padding: 0, border: 0, background: "transparent" }}><span className="dot" /></span>
         <span className="name">{name}</span>
         <span className="count">{apps.length}</span>
       </div>
-      {apps.map((a) => {
-        const j = DATA.byId(a.jobId); const c = DATA.coOf(j.co);
-        return (
-          <div key={a.id} className="kanban-card" onClick={() => openApp(a)}>
-            <div className="co"><CoLogo co={j.co} size="sm" /><span style={{ color: "var(--color-ink-2)", fontWeight: 500 }}>{c.name}</span></div>
-            <div className="role">{j.title}</div>
-            <div className="foot">
-              <span className="when">Applied {a.appliedOn.slice(5)}</span>
-              {a.nextStep && a.nextStep !== "—" && (
-                <span style={{ fontSize: 10, color: "var(--color-brand-700)", fontWeight: 500 }}>
-                  <Icon name="calendar" size={10} /> {a.nextStep.split("·").slice(-1)[0].trim()}
-                </span>
-              )}
+
+      {isClosedColumn && fannedOut ? (
+        <div className="kanban-fanout" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {STATUS_EXITS.map((exit) => (
+            <ClosedSubZone key={exit.key} exit={exit} overId={overId} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {apps.map((a) => (
+            <DraggableCard key={a.id} app={a} openApp={openApp} allCategoryIds={allCategoryIds} onKeyboardMove={onKeyboardMove} />
+          ))}
+          {apps.length === 0 && (
+            <div style={{ padding: 20, textAlign: "center", color: "var(--color-ink-4)", fontSize: 12, border: "1px dashed var(--color-border-2)", borderRadius: 8 }}>
+              Nothing here.
             </div>
-          </div>
-        );
-      })}
-      {apps.length === 0 && (
-        <div style={{ padding: 20, textAlign: "center", color: "var(--color-ink-4)", fontSize: 12, border: "1px dashed var(--color-border-2)", borderRadius: 8 }}>
-          Nothing here.
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ClosedSubZone({ exit, overId }) {
+  const dropId = "closed:" + exit.key;
+  const { setNodeRef, isOver } = useDroppable({ id: dropId });
+  const active = isOver || overId === dropId;
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      data-active={active ? "true" : "false"}
+      data-rect-zone={dropId}
+      aria-label={exit.label}
+      style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8,
+        border: "1px solid " + (active ? "var(--color-brand-400)" : "var(--color-border-2)"),
+        background: active ? "var(--color-brand-50)" : "var(--color-surface)",
+        cursor: "default", textAlign: "left", width: "100%" }}>
+      <Icon name={exit.icon} size={14} />
+      <span style={{ fontSize: 12, fontWeight: 500, color: "var(--color-ink)" }}>{exit.label}</span>
+    </button>
+  );
+}
+
+// Card pickup/move via keyboard (AC-19, AC-20): Enter/Space enters move mode, Left/Right (or
+// Up/Down) cycles the candidate target with a live aria-live announcement, Enter/Space confirms,
+// Escape cancels. This keyboard path is independent of @dnd-kit's KeyboardSensor — it drives the
+// exact same applyStatusChange/backward-confirm logic as a pointer drop via onKeyboardMove.
+function DraggableCard({ app, openApp, allCategoryIds, onKeyboardMove }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: app.id });
+  const [moveMode, setMoveMode] = React.useState(false);
+  const [targetIdx, setTargetIdx] = React.useState(0);
+  const targets = React.useMemo(() => keyboardTargets(allCategoryIds), [allCategoryIds]);
+
+  const j = DATA.byId(app.jobId);
+  const c = DATA.coOf(j.co);
+
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : "auto" }
+    : undefined;
+
+  const enterMoveMode = () => { setMoveMode(true); setTargetIdx(0); };
+  const exitMoveMode = () => setMoveMode(false);
+
+  const onKeyDown = (e) => {
+    if (!moveMode) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); enterMoveMode(); }
+      return;
+    }
+    if (e.key === "Escape") { e.preventDefault(); exitMoveMode(); return; }
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      setTargetIdx((i) => Math.min(i + 1, targets.length - 1));
+      return;
+    }
+    if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setTargetIdx((i) => Math.max(i - 1, 0));
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const target = targets[targetIdx];
+      exitMoveMode();
+      if (target) onKeyboardMove(app, target.id);
+    }
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className="kanban-card"
+      style={style}
+      tabIndex={0}
+      role="button"
+      aria-pressed={moveMode}
+      aria-label={c.name + " — " + j.title}
+      onKeyDown={onKeyDown}
+      onClick={() => { if (!moveMode) openApp(app); }}
+    >
+      <div className="co"><CoLogo co={j.co} size="sm" /><span style={{ color: "var(--color-ink-2)", fontWeight: 500 }}>{c.name}</span></div>
+      <div className="role">{j.title}</div>
+      <div className="foot">
+        <span className="when">Applied {app.appliedOn.slice(5)}</span>
+        {app.nextStep && app.nextStep !== "—" && (
+          <span style={{ fontSize: 10, color: "var(--color-brand-700)", fontWeight: 500 }}>
+            <Icon name="calendar" size={10} /> {app.nextStep.split("·").slice(-1)[0].trim()}
+          </span>
+        )}
+      </div>
+      {moveMode && targets[targetIdx] && (
+        <div role="status" aria-live="polite" style={{ fontSize: 11, color: "var(--color-brand-700)", fontWeight: 500, marginTop: 4 }}>
+          Move to {targets[targetIdx].label}? Use arrow keys, Enter to confirm, Escape to cancel.
         </div>
       )}
     </div>
@@ -210,7 +512,7 @@ function SortableListView({ apps, openApp, sortCol, sortDir, onSort }) {
 }
 
 /* ─── Application Detail Screen ─── */
-function ApplicationDetailScreen({ app, goto, onBack, openSearch, onDelete, onStatusChange, onNotesSave, onEditSave }) {
+function ApplicationDetailScreen({ app, goto, onBack, openSearch, onDelete, onStatusChange, onNotesSave, onEditSave, onLogout }) {
   const j = DATA.byId(app.jobId); const c = DATA.coOf(j.co);
   const [notes, setNotes] = React.useState(app.notes);
   const [notesEditing, setNotesEditing] = React.useState(false);
@@ -318,6 +620,7 @@ function ApplicationDetailScreen({ app, goto, onBack, openSearch, onDelete, onSt
                 ))}
               </div>
             </Card>
+            <RemindersCard app={app} job={j} company={c} onLogout={onLogout} />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -333,12 +636,15 @@ function ApplicationDetailScreen({ app, goto, onBack, openSearch, onDelete, onSt
                 )}
               </div>
             </Card>
-            <Card title="Company">
+            <Card title={c.name || "Company"} className="company-card">
               <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
                 <KV k="Industry" v={c.industry} />
                 <KV k="Size" v={c.size} />
                 <KV k="HQ" v={c.hq} />
-                <KV k="Tags" v={(j.tags || []).join(", ") || "—"} />
+                {/* Website (story #486): reuses the Links card's LinkRow so the two
+                    external-link surfaces behave identically. `tags` stays out of this
+                    card per story #427's decision (regression-locked). */}
+                {c.website && <LinkRow icon="globe" label="Website" value={c.website} href={c.website} />}
               </div>
             </Card>
             {!confirmDelete ? (
@@ -370,6 +676,79 @@ function ApplicationDetailScreen({ app, goto, onBack, openSearch, onDelete, onSt
             setEditMode(false);
             onEditSave?.(app, data); // persist to the backend
           }} />
+      )}
+    </>
+  );
+}
+
+/* ─── Reminders Card (story #163 — mounts the existing CustomReminderList/Form) ─── */
+// Mock-mode / no-apiId guard (AC-11, PDA spec §3): reminders are inherently tied to a real
+// backend application id, so when app.apiId is absent (manual/mock entry, or USE_API off)
+// this renders an inactive state and never imports/calls the custom-reminders API at all.
+function RemindersCard({ app, job, company, onLogout }) {
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [editingReminder, setEditingReminder] = React.useState(null);
+  const [listVersion, setListVersion] = React.useState(0);
+  const footerRef = React.useRef(null);
+  const [footerMounted, setFooterMounted] = React.useState(false);
+
+  const apiId = app?.apiId;
+  // Req-4 (story #211, AC-211-4.x): the add/edit-reminder modal mirrors story #207's card
+  // identity (company icon + job title). NotificationIdentity already degrades gracefully
+  // (generic fallback icon + label) when either half of the identity is missing/blank.
+  const reminderIdentity = { company: company?.name, jobTitle: job?.title };
+
+  const openAdd = () => { setEditingReminder(null); setFormOpen(true); };
+  const openEdit = (reminder) => { setEditingReminder(reminder); setFormOpen(true); };
+  const closeForm = () => { setFormOpen(false); setEditingReminder(null); };
+  const handleSuccess = () => {
+    setFormOpen(false);
+    setEditingReminder(null);
+    setListVersion((v) => v + 1); // force CustomReminderList to refetch
+  };
+
+  if (!apiId) {
+    return (
+      <Card title="Reminders">
+        <div data-testid="reminders-inactive" style={{ fontSize: 13, color: "var(--color-ink-3)" }}>
+          Reminders are available once this application is synced.
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <Card title="Reminders"
+        action={<Button variant="ghost" size="sm" icon="plus" onClick={openAdd}>Add reminder</Button>}>
+        <CustomReminderList
+          key={listVersion}
+          applicationId={apiId}
+          onLogout={onLogout}
+          onAddReminder={openAdd}
+          onEditReminder={openEdit}
+        />
+      </Card>
+
+      {formOpen && (
+        <UI.Modal
+          title={<NotificationIdentity notification={reminderIdentity} />}
+          onClose={closeForm}
+          footer={
+            <div
+              ref={(node) => { footerRef.current = node; if (node && !footerMounted) setFooterMounted(true); }}
+              style={{ display: "flex", gap: 8, justifyContent: "flex-end", width: "100%" }}
+            />
+          }
+        >
+          <CustomReminderForm
+            applicationId={apiId}
+            reminder={editingReminder}
+            onSuccess={handleSuccess}
+            onCancel={closeForm}
+            footerRef={footerRef}
+          />
+        </UI.Modal>
       )}
     </>
   );
@@ -467,6 +846,7 @@ function normalizeUrl(raw) {
 }
 
 function KV({ k, v }) {
+  if (v === null || v === undefined || String(v).trim() === "") return null;
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
       <span style={{ color: "var(--color-ink-3)" }}>{k}</span>

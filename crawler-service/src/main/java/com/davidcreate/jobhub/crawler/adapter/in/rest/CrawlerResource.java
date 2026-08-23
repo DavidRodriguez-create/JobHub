@@ -6,6 +6,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.UUID;
@@ -20,14 +21,24 @@ public class CrawlerResource {
 
     private final CrawlUseCase crawlUseCase;
 
+    @ConfigProperty(name = "crawler.crawl.min-new-posts", defaultValue = "100")
+    int defaultMinNewPosts;
+
     public CrawlerResource(CrawlUseCase crawlUseCase) {
         this.crawlUseCase = crawlUseCase;
     }
 
+    /**
+     * Trigger an ad-hoc crawl batch.
+     *
+     * @param limit the new-post target for this run (default: configured min-new-posts).
+     *              Must be >= 1; no upper bound (safety cap applies instead).
+     */
     @POST
-    public Response crawlBatch(@QueryParam("limit") @DefaultValue("10") int limit) {
-        LOG.infof("Received request to crawl batch with limit: %d", limit);
-        CrawlBatchResult result = crawlUseCase.crawlBatch(limit);
+    public Response crawlBatch(@QueryParam("limit") Integer limit) {
+        int minNewPosts = (limit != null) ? limit : defaultMinNewPosts;
+        LOG.infof("Received request to crawl batch, new-post target: %d", minNewPosts);
+        CrawlBatchResult result = crawlUseCase.crawlBatch(minNewPosts);
         return result.isEmpty()
                 ? Response.status(Response.Status.NO_CONTENT).build()
                 : Response.ok(result).build();

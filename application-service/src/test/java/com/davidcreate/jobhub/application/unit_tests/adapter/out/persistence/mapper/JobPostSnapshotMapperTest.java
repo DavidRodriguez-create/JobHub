@@ -40,4 +40,47 @@ class JobPostSnapshotMapperTest {
         assertThat(back.location).isEqualTo("Madrid, Spain");
         assertThat(back.snapshottedAt).isEqualTo(e.snapshottedAt);
     }
+
+    @Test
+    @DisplayName("AS244-U-01: round-trips a populated companyLogoUrl, entity to domain and back")
+    void roundTripWithCompanyLogoUrl() {
+        var e = new JobPostSnapshotEntity();
+        e.id = UUID.randomUUID();
+        e.jobPostId = UUID.randomUUID();
+        e.contentHash = "deadbeef";
+        e.title = "Dev";
+        e.company = "Acme";
+        e.companyLogoUrl = "https://cdn.example/acme.png";
+        e.url = "https://x";
+        e.location = "Madrid, Spain";
+        e.snapshottedAt = OffsetDateTime.now();
+
+        JobPostSnapshot d = mapper.toDomain(e);
+        assertThat(d.getCompanyLogoUrl()).isEqualTo("https://cdn.example/acme.png");
+
+        JobPostSnapshotEntity back = mapper.toEntity(d);
+        assertThat(back.companyLogoUrl).isEqualTo("https://cdn.example/acme.png");
+    }
+
+    @Test
+    @DisplayName("AS244-U-02: a null companyLogoUrl (pre-existing snapshot, no backfill) round-trips as null, not "
+            + "an empty string or NPE")
+    void roundTripWithNullCompanyLogoUrl() {
+        var e = new JobPostSnapshotEntity();
+        e.id = UUID.randomUUID();
+        e.jobPostId = UUID.randomUUID();
+        e.contentHash = "deadbeef";
+        e.title = "Dev";
+        e.company = "Acme";
+        e.companyLogoUrl = null;
+        e.url = "https://x";
+        e.location = "Madrid, Spain";
+        e.snapshottedAt = OffsetDateTime.now();
+
+        JobPostSnapshot d = mapper.toDomain(e);
+        assertThat(d.getCompanyLogoUrl()).isNull();
+
+        JobPostSnapshotEntity back = mapper.toEntity(d);
+        assertThat(back.companyLogoUrl).isNull();
+    }
 }

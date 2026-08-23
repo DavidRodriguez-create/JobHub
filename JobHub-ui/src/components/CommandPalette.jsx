@@ -5,7 +5,24 @@ import DATA from "../data/mockData.js";
 // JobHub — Command palette / search overlay
 import { Button, CoLogo, StatusPill } from "./ui.jsx";
 
-function CommandPalette({ mode, onClose, onSelectJob, onSelectApp }) {
+// Static settings/navigation index (story #304). Client-side only: no API call, no
+// backend contract. Each entry's `keywords` (plus its own label) forms the alias text
+// matched against the trimmed, lower-cased query (BR-3). `section` targets a
+// SettingsScreen section; `adminOnly` entries additionally target the top-level
+// "admin" route instead of a Settings section (BR-6/BR-7).
+const SETTINGS_INDEX = [
+  { label: "Account settings", keywords: ["account", "profile", "name", "email", "photo", "sign out", "logout"], section: "account" },
+  { label: "Change password", keywords: ["password", "change password", "pwd", "security"], section: "account" },
+  { label: "Two-factor auth", keywords: ["two-factor", "two factor", "2fa", "totp", "authenticator", "mfa"], section: "account" },
+  { label: "Notification preferences", keywords: ["notification", "notifications", "alerts", "reminders", "digest", "email preferences"], section: "notifications" },
+  { label: "Sources & filters", keywords: ["sources", "filters", "boards", "greenhouse", "lever", "ashby", "linkedin"], section: "sources" },
+  { label: "Integrations", keywords: ["integrations", "calendar", "gmail", "notion", "connect"], section: "integrations" },
+  { label: "Billing", keywords: ["billing", "plan", "subscription", "upgrade", "pricing"], section: "billing" },
+  { label: "Data & privacy", keywords: ["data", "privacy", "export", "delete account", "analytics"], section: "data" },
+  { label: "Admin panel", keywords: ["admin", "admin panel", "trigger", "crawl"], route: "admin", adminOnly: true },
+];
+
+function CommandPalette({ mode, onClose, onSelectJob, onSelectApp, onSelectSettings, isAdmin }) {
   const [query, setQuery] = React.useState("");
   const inputRef = React.useRef(null);
   const [selectedIdx, setSelectedIdx] = React.useState(0);
@@ -23,12 +40,27 @@ function CommandPalette({ mode, onClose, onSelectJob, onSelectApp }) {
   // Reset selection when query changes
   React.useEffect(() => { setSelectedIdx(0); }, [query]);
 
+  const isSettingsMode = mode === "settings";
   const isAppMode = mode === "applications" || mode === "dashboard" || mode === "application";
 
   // Search results
   const results = React.useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (isAppMode) {
+    if (isSettingsMode) {
+      // Settings/navigation index (BR-1..BR-6): a static, client-side catalogue in
+      // place of the job/application search while on the Settings screen.
+      // Result cap (BR-5): consistent with the existing modes' `.slice(0, 8)`, sized up
+      // to the full catalogue length so the 9th (admin-only) entry is never trimmed
+      // purely because of cap arithmetic (AC-1/TC-304-02: 9 entries for an admin).
+      return SETTINGS_INDEX
+        .filter((entry) => !entry.adminOnly || isAdmin)
+        .filter((entry) => {
+          if (!q) return true;
+          return `${entry.label} ${entry.keywords.join(" ")}`.toLowerCase().includes(q);
+        })
+        .slice(0, SETTINGS_INDEX.length)
+        .map((entry) => ({ type: "settings", id: entry.label, entry }));
+    } else if (isAppMode) {
       // Search applications
       return DATA.applications
         .filter((a) => {
@@ -57,10 +89,11 @@ function CommandPalette({ mode, onClose, onSelectJob, onSelectApp }) {
           return { type: "job", id: j.id, job: j, company: c };
         });
     }
-  }, [query, isAppMode]);
+  }, [query, isAppMode, isSettingsMode, isAdmin]);
 
   const handleSelect = (item) => {
-    if (item.type === "app") onSelectApp?.(item.app);
+    if (item.type === "settings") onSelectSettings?.(item.entry);
+    else if (item.type === "app") onSelectApp?.(item.app);
     else onSelectJob?.(item.job);
     onClose();
   };
@@ -121,7 +154,7 @@ function CommandPalette({ mode, onClose, onSelectJob, onSelectApp }) {
         <div style={cmdStyles.inputWrap}>
           <Icon name="search" size={18} style={{ color: "var(--color-ink-3)", flexShrink: 0 }} />
           <input ref={inputRef} style={cmdStyles.input}
-            placeholder={isAppMode ? "Search applications…" : "Search jobs…"}
+            placeholder={isSettingsMode ? "Search settings…" : isAppMode ? "Search applications…" : "Search jobs…"}
             value={query} onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown} />
           <span style={{ fontSize: 11, color: "var(--color-ink-4)", fontFamily: "var(--font-mono)",
@@ -130,34 +163,48 @@ function CommandPalette({ mode, onClose, onSelectJob, onSelectApp }) {
         </div>
 
         <div style={cmdStyles.hint}>
-          {isAppMode ? "Applications" : "Jobs"}
+          {isSettingsMode ? "Settings" : isAppMode ? "Applications" : "Jobs"}
         </div>
 
         <div style={cmdStyles.list}>
           {results.length === 0 ? (
             <div style={cmdStyles.empty}>
-              No {isAppMode ? "applications" : "jobs"} found for "{query}"
+              No {isSettingsMode ? "settings" : isAppMode ? "applications" : "jobs"} found for "{query}"
             </div>
           ) : (
             results.map((item, i) => (
-              <div key={item.id} style={cmdStyles.row(i === selectedIdx)}
-                onClick={() => handleSelect(item)}
-                onMouseEnter={() => setSelectedIdx(i)}>
-                <CoLogo co={item.job.co} size="sm" />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-ink)", letterSpacing: "-0.012em",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {item.job.title}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--color-ink-3)", marginTop: 1 }}>
-                    {item.company.name} · {item.job.location}
+              item.type === "settings" ? (
+                <div key={item.id} data-testid="settings-result-row" style={cmdStyles.row(i === selectedIdx)}
+                  onClick={() => handleSelect(item)}
+                  onMouseEnter={() => setSelectedIdx(i)}>
+                  <Icon name="settings" size={18} style={{ color: "var(--color-ink-3)", flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-ink)", letterSpacing: "-0.012em",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.entry.label}
+                    </div>
                   </div>
                 </div>
-                {item.type === "app" && <StatusPill status={item.app.status} />}
-                {item.type === "job" && (
-                  <span className="mono" style={{ fontSize: 11, color: "var(--color-ink-3)" }}>{item.job.comp}</span>
-                )}
-              </div>
+              ) : (
+                <div key={item.id} style={cmdStyles.row(i === selectedIdx)}
+                  onClick={() => handleSelect(item)}
+                  onMouseEnter={() => setSelectedIdx(i)}>
+                  <CoLogo co={item.job.co} size="sm" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-ink)", letterSpacing: "-0.012em",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.job.title}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--color-ink-3)", marginTop: 1 }}>
+                      {item.company.name} · {item.job.location}
+                    </div>
+                  </div>
+                  {item.type === "app" && <StatusPill status={item.app.status} />}
+                  {item.type === "job" && (
+                    <span className="mono" style={{ fontSize: 11, color: "var(--color-ink-3)" }}>{item.job.comp}</span>
+                  )}
+                </div>
+              )
             ))
           )}
         </div>

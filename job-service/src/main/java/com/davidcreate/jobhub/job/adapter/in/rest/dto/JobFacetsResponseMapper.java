@@ -20,6 +20,7 @@ public final class JobFacetsResponseMapper {
                 .locations(toFacetValues(facets.locations()))
                 .languages(toFacetValues(facets.languages()))
                 .employmentTypes(toFacetValues(facets.employmentTypes()))
+                .careerLevels(toFacetValues(facets.careerLevels()))
                 .compensationMin(facets.compensationMin())
                 .compensationMax(facets.compensationMax());
     }

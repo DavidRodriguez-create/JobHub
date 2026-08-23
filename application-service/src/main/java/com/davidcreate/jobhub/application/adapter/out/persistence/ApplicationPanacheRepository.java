@@ -12,10 +12,12 @@ import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.Tuple;
 import lombok.RequiredArgsConstructor;
+import org.jboss.logging.Logger;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +29,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ApplicationPanacheRepository
         implements ApplicationRepository, PanacheRepositoryBase<ApplicationEntity, UUID> {
+
+    private static final Logger LOG = Logger.getLogger(ApplicationPanacheRepository.class);
 
     private final ApplicationMapper mapper;
 
@@ -73,6 +77,8 @@ public class ApplicationPanacheRepository
             mapper.updateEntity(entity, a);
             entity.updatedAt = now;
             persistAndFlush(entity);
+            LOG.infof("UPDATE applications.application id=%s userId=%s status=%s",
+                    entity.id, entity.userId, entity.status);
             return mapper.toDomain(entity);
         }
         entity = mapper.toEntity(a);
@@ -80,17 +86,21 @@ public class ApplicationPanacheRepository
         entity.updatedAt = now;
         if (entity.appliedAt == null) entity.appliedAt = now;
         persistAndFlush(entity);
+        LOG.infof("INSERT applications.application id=%s userId=%s jobPostId=%s status=%s",
+                entity.id, entity.userId, entity.jobPostId, entity.status);
         return mapper.toDomain(entity);
     }
 
     @Override
     public void removeById(UUID id) {
-        delete("id", id);
+        long deleted = delete("id", id);
+        LOG.infof("DELETE applications.application id=%s -> %d row(s)", id, deleted);
     }
 
     @Override
     public void removeAllByUser(UUID userId) {
-        delete("userId", userId);
+        long deleted = delete("userId", userId);
+        LOG.infof("DELETE applications.application userId=%s -> %d row(s)", userId, deleted);
     }
 
     @Override
@@ -137,6 +147,36 @@ public class ApplicationPanacheRepository
                     ((Number) r[3]).longValue()));
         }
         return result;
+    }
+
+    @Override
+    public List<Application> findNonTerminalStaleApplications(OffsetDateTime cutoff) {
+        List<ApplicationStatus> nonTerminal = Arrays.stream(ApplicationStatus.values())
+                .filter(s -> !s.isTerminal())
+                .toList();
+        return find("status IN :statuses AND updatedAt < :cutoff",
+                Map.of("statuses", nonTerminal, "cutoff", cutoff))
+                .list()
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public boolean isOwnedByUser(UUID applicationId, UUID userId) {
+        return count("id = ?1 AND userId = ?2", applicationId, userId) > 0;
+    }
+
+    @Override
+    public List<Application> findAllByIds(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return find("id IN :ids", Map.of("ids", ids))
+                .list()
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override

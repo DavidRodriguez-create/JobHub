@@ -2,22 +2,20 @@ package com.davidcreate.jobhub.auth.adapter.out.notification;
 
 import com.davidcreate.jobhub.auth.application.port.out.VerificationNotifier;
 import com.davidcreate.jobhub.auth.domain.valueobject.VerificationAction;
+import io.quarkus.arc.DefaultBean;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 
 /**
- * Default notifier: logs the verification message instead of sending an email.
- * A real deployment replaces this with an email-provider adapter (same port).
+ * Default notifier active in dev and test: logs the verification code instead of
+ * sending an email. The prod profile swaps in MailerVerificationNotifier via
+ * {@code @IfBuildProfile("prod")}, making this bean inactive there via {@code @DefaultBean}.
  */
 @ApplicationScoped
+@DefaultBean
 public class LoggingVerificationNotifier implements VerificationNotifier {
 
     private static final Logger LOG = Logger.getLogger(LoggingVerificationNotifier.class);
-
-    @Override
-    public void sendEmailVerification(String email, String token) {
-        LOG.infof("[email-verification] to=%s token=%s", email, token);
-    }
 
     @Override
     public void sendActionCode(String email, VerificationAction action, String code) {

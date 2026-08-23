@@ -105,7 +105,8 @@ CREATE TABLE crawler.job_post (
     city                TEXT,
     country             TEXT,
 
-    -- Compensation (annual, local currency units)
+    -- Compensation (annual, rough EUR estimate parsed from the description;
+    -- the original figure/currency stays in `description`)
     compensation_min    INTEGER,
     compensation_max    INTEGER,
 
@@ -119,7 +120,25 @@ CREATE TABLE crawler.job_post (
                                 'internship'
                             )),
     languages           TEXT[],   -- working languages, e.g. {'English','Spanish'}
-    requirements        TEXT[],   -- structured list of role requirements
+    requirements        TEXT[],   -- structured list of role requirements (LLM-extracted)
+    career_level        VARCHAR(32)
+                            CHECK (career_level IS NULL OR career_level IN (
+                                'internship',
+                                'junior',
+                                'mid',
+                                'senior',
+                                'lead',
+                                'principal',
+                                'manager',
+                                'director'
+                            )),
+
+    -- LLM enrichment bookkeeping (employment_type, languages, requirements,
+    -- career_level and location are filled by an async enrichment pass)
+    enrichment_status   VARCHAR(16) NOT NULL DEFAULT 'pending'
+                            CHECK (enrichment_status IN ('pending', 'done', 'failed')),
+    enriched_at         TIMESTAMPTZ,
+    enrichment_attempts SMALLINT     NOT NULL DEFAULT 0,
 
     -- Audit
     first_seen_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -134,6 +153,9 @@ CREATE INDEX idx_job_post_country_city     ON crawler.job_post (country, city);
 CREATE INDEX idx_job_post_first_seen_at    ON crawler.job_post (first_seen_at DESC);
 CREATE INDEX idx_job_post_compensation_min ON crawler.job_post (compensation_min);
 CREATE INDEX idx_job_post_employment_type  ON crawler.job_post (employment_type);
+CREATE INDEX idx_job_post_career_level     ON crawler.job_post (career_level);
+CREATE INDEX idx_job_post_enrichment_pending ON crawler.job_post (enrichment_status)
+    WHERE enrichment_status = 'pending';
 
 
 -- ─────────────────────────────────────────
@@ -180,3 +202,15 @@ CREATE TABLE crawler.saved_filter (
 );
 
 CREATE INDEX idx_saved_filter_user ON crawler.saved_filter (user_id);
+
+
+-- ─────────────────────────────────────────
+-- Cross-schema grants for job-service (job_user)
+-- job-service reads crawled postings and owns the saved-job / saved-filter
+-- bookmarks, which live in this schema. crawler-service (crawler_user) owns
+-- the schema; job_user gets least-privilege access to just these tables.
+-- ─────────────────────────────────────────
+
+GRANT USAGE ON SCHEMA crawler TO job_user;
+GRANT SELECT ON crawler.job_post, crawler.pull_target TO job_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON crawler.saved_job, crawler.saved_filter TO job_user;

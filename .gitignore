@@ -41,3 +41,10 @@ deploy/**/terraform.tfstate.*
 deploy/**/*.tfplan
 deploy/**/keys/
 deploy/**/*.pem
+
+# Local DB dumps/backups — contain real user data (emails, password hashes)
+db/backups/
+
+# Python bytecode (mkdocs hooks)
+__pycache__/
+*.pyc

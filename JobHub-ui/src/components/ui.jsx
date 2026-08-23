@@ -36,18 +36,44 @@ function Input({ leading, trailing, className = "", ...rest }) {
   );
 }
 
-function Field({ label, hint, error, children }) {
+function Field({ label, htmlFor, hint, error, children }) {
   return (
     <div className="field">
-      {label && <label className="field-label">{label}</label>}
+      {label && <label className="field-label" htmlFor={htmlFor}>{label}</label>}
       {children}
-      {error ? <div className="field-error">{error}</div> : hint && <div className="field-hint">{hint}</div>}
+      {error ? <div className="field-error" role="alert">{error}</div> : hint && <div className="field-hint">{hint}</div>}
     </div>
   );
 }
 
-function Toggle({ on, onChange }) {
-  return <div className={"toggle " + (on ? "on" : "")} onClick={() => onChange?.(!on)} role="switch" aria-checked={on} />;
+function Toggle({ on, onChange, disabled, ...rest }) {
+  return (
+    <div
+      className={"toggle " + (on ? "on " : "") + (disabled ? "disabled" : "")}
+      onClick={() => { if (!disabled) onChange?.(!on); }}
+      role="switch"
+      aria-checked={on}
+      aria-disabled={disabled || undefined}
+      {...rest}
+    />
+  );
+}
+
+// CheckboxToggle: same visual treatment as Toggle (the ".toggle" pill + knob), but backed by a
+// real native <input type="checkbox"> so it keeps standard checkbox semantics (.checked,
+// role="checkbox", form participation) for screens/tests that need a checkbox rather than a
+// switch (e.g. multi-select channel pickers). Story #175 / sub-issue #203 (AC-16 / FR-10).
+function CheckboxToggle({ checked, onChange, disabled, className = "", ...rest }) {
+  return (
+    <input
+      type="checkbox"
+      className={"toggle-checkbox " + className}
+      checked={checked}
+      onChange={(e) => onChange?.(e.target.checked)}
+      disabled={disabled}
+      {...rest}
+    />
+  );
 }
 
 /* ─── Status pill ─── */
@@ -60,10 +86,71 @@ function StatusPill({ status }) {
   return <span className={"status " + status}><span className="dot" />{STATUS_LABEL[status]}</span>;
 }
 
-/* ─── Company logo chip ─── */
-function CoLogo({ co, size }) {
+/* ─── Company logo chip ───
+   Story #429 (sub-issue #448): CoLogo now owns the full logo lifecycle, not
+   just the initials chip.
+   - `logoUrl`: when present and non-empty, renders a real <img>. On load
+     failure (`onError`) it degrades PERMANENTLY to the initials chip - no
+     retry, no alternate CDN attempted client-side (AC-429-08/09). When the
+     prop is omitted, the company's own `logoUrl` (already registered in the
+     companies store by `src/api/mappers.js`, story #428) is used
+     automatically, so existing call sites (JobRow, Applications, JobSearch,
+     Dashboard, CommandPalette) pick up real logos with zero call-site
+     changes.
+   - Colour is a stable hash of `co` (`data-hue`, 0..5) mapped to a small
+     palette in styles.css, replacing the old ~14-company hardcoded CSS
+     allowlist so every company gets a deterministic colour, not just the
+     handful that used to be named. */
+const COLOGO_HUE_COUNT = 6;
+function coLogoHue(input) {
+  const s = String(input || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return h % COLOGO_HUE_COUNT;
+}
+
+function CoLogo({ co, size, logoUrl, imgTestId, alt, ...rest }) {
   const c = DATA.coOf(co);
-  return <div className={"cologo " + (size === "sm" ? "sm" : size === "lg" ? "lg" : "")} data-co={co}>{(c.name || "?").charAt(0)}</div>;
+  // Explicit `logoUrl` prop wins; otherwise fall back to the company's own
+  // resolved logo (already flowing through the companies store since #428).
+  const resolvedLogoUrl = logoUrl !== undefined ? logoUrl : (c.logoUrl || null);
+  const [imgError, setImgError] = useState(false);
+  // Reset the degrade state only when the underlying logo/company actually
+  // changes - a re-render with identical props must NOT retry (AC-429-09).
+  useEffect(() => { setImgError(false); }, [resolvedLogoUrl, co]);
+
+  const sizeCls = size === "sm" ? "sm" : size === "lg" ? "lg" : "";
+  const cls = ["cologo", sizeCls].filter(Boolean).join(" ");
+  const hue = coLogoHue(co || c.name);
+  const showImage = Boolean(resolvedLogoUrl) && !imgError;
+
+  if (showImage) {
+    // `imgTestId` (if supplied) targets the <img> specifically; a plain
+    // `data-testid` in `rest` is reserved for the chip fallback so callers
+    // that need to assert on both states (e.g. NotificationIdentity) can
+    // tell them apart. See NotificationIdentity.jsx for the consumer side.
+    const { "data-testid": _chipTestId, ...imgRest } = rest;
+    return (
+      <img
+        {...imgRest}
+        src={resolvedLogoUrl}
+        alt={alt ?? c.name ?? ""}
+        className={cls}
+        data-co={co}
+        data-hue={hue}
+        data-testid={imgTestId}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className={cls} data-co={co} data-hue={hue} {...rest}>
+      {(c.name || "?").charAt(0)}
+    </div>
+  );
 }
 
 /* ─── Avatar ─── */
@@ -76,12 +163,30 @@ function Avatar({ initials = "", size = 28 }) {
 }
 
 /* ─── Sidebar ─── */
-function Sidebar({ current, onNav, appCounts, savedCount, authed, account, mobileOpen, onClose }) {
+// Caps the unread-notifications badge at the literal "99+" (story #206 follow-up,
+// ticket #237) — mirrors the cap the removed bell used to apply.
+function unreadBadgeCount(unreadCount) {
+  if (unreadCount == null || unreadCount <= 0) return null;
+  return unreadCount > 99 ? "99+" : unreadCount;
+}
+
+function Sidebar({ current, onNav, appCounts, savedCount, unreadCount, authed, account, mobileOpen, onClose, isAdmin }) {
+  const adminItems = isAdmin
+    ? [
+        { id: "admin", label: "Admin", icon: "settings", auth: true },
+        { id: "admin-companies", label: "Companies", icon: "building", auth: true },
+      ]
+    : [];
   const items = [
     { id: "search", label: "Job search", icon: "search" },
     { id: "saved", label: "Saved", icon: "bookmark", count: savedCount, auth: true },
     { id: "applications", label: "Applications", icon: "briefcase", count: appCounts.total, auth: true },
+    // Story #184: between Applications and Dashboard, auth-gated. Ticket #237 restores
+    // the unread-count badge (hidden at 0, capped "99+") that the removed bell used to
+    // show; never shown while logged out regardless of the prop value.
+    { id: "notifications", label: "Notifications", icon: "bell", auth: true, count: authed ? unreadBadgeCount(unreadCount) : null },
     { id: "dashboard", label: "Dashboard", icon: "layout-dashboard", auth: true },
+    ...adminItems,
   ];
 
   return (
@@ -100,6 +205,7 @@ function Sidebar({ current, onNav, appCounts, savedCount, authed, account, mobil
       <div className="sidebar-section">
         {items.map((it) => (
           <a key={it.id} className={"nav-item " + (current === it.id ? "active" : "")}
+            data-testid={`nav-item-${it.id}`}
             onClick={() => onNav(it.id)} style={it.auth && !authed ? { opacity: 0.5 } : {}}>
             <span className="ico"><Icon name={it.icon} size={16} /></span>
             <span className="label">{it.label}</span>
@@ -251,9 +357,9 @@ function ToastTray({ toasts }) {
 }
 
 /* ─── Empty state ─── */
-function Empty({ icon = "briefcase", title, desc, cta }) {
+function Empty({ icon = "briefcase", title, desc, cta, className = "" }) {
   return (
-    <div className="empty">
+    <div className={("empty " + className).trim()}>
       <span className="ico"><Icon name={icon} size={28} /></span>
       <div className="ttl">{title}</div>
       {desc && <div className="desc">{desc}</div>}
@@ -278,6 +384,10 @@ function Tabs({ value, onChange, tabs }) {
 /* ─── Job row (search results) ─── */
 function JobRow({ job, onSave, isSaved, onOpen, isApplied }) {
   const c = DATA.coOf(job.co);
+  // Story #1 (#293): a posting with additional openings beyond the primary
+  // surfaces a "+N more" affordance so a candidate scanning the list isn't
+  // misled into thinking the posting is single-location when it is not.
+  const additionalCount = Array.isArray(job.locations) ? job.locations.length - 1 : 0;
   return (
     <div className="card card-pad job-row-card" style={{ display: "grid", gridTemplateColumns: "44px 1fr auto", gap: 14, alignItems: "center", cursor: "pointer" }}
       onClick={() => onOpen?.(job)}>
@@ -290,8 +400,19 @@ function JobRow({ job, onSave, isSaved, onOpen, isApplied }) {
         </div>
         <div style={{ display: "flex", gap: 8, fontSize: 12, color: "var(--color-ink-3)", alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ color: "var(--color-ink-2)", fontWeight: 500 }}>{c.name}</span>
+          {c.industry != null && (
+            <>
+              <span className="dot-sep" />
+              <span data-testid="job-row-industry">{c.industry}</span>
+            </>
+          )}
           <span className="dot-sep" />
           <span>{job.location}</span>
+          {additionalCount > 0 && (
+            <span data-testid="location-more" style={{ padding: "1px 7px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: "var(--color-surface-2)", color: "var(--color-ink-2)", border: "1px solid var(--color-border)" }}>
+              {`+${additionalCount} more`}
+            </span>
+          )}
           <span className="dot-sep" />
           <span className="mono">{job.comp}</span>
           <span className="dot-sep" />
@@ -311,7 +432,7 @@ function JobRow({ job, onSave, isSaved, onOpen, isApplied }) {
 }
 
 export {
-  Button, Input, Field, Toggle,
+  Button, Input, Field, Toggle, CheckboxToggle,
   StatusPill, CoLogo, Avatar,
   Sidebar, Topbar,
   Card, Stat, Modal, ToastTray, Empty, Tabs, JobRow,

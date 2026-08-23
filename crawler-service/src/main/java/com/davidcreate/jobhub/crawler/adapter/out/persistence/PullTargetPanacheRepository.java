@@ -7,6 +7,7 @@ import com.davidcreate.jobhub.crawler.domain.port.out.PullTargetRepository;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
+import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +17,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PullTargetPanacheRepository
         implements PullTargetRepository, PanacheRepositoryBase<PullTargetEntity, UUID> {
+
+    private static final Logger LOG = Logger.getLogger(PullTargetPanacheRepository.class);
 
     private final PullTargetMapper mapper;
 
@@ -72,7 +75,12 @@ public class PullTargetPanacheRepository
                         entity -> {
                             mapper.updateEntity(entity, domain);
                             persistAndFlush(entity);
+                            LOG.debugf("UPDATE crawler.pull_target id=%s status=%s", entity.id, entity.status);
                         },
-                        () -> persistAndFlush(mapper.toEntity(domain)));
+                        () -> {
+                            PullTargetEntity entity = mapper.toEntity(domain);
+                            persistAndFlush(entity);
+                            LOG.debugf("INSERT crawler.pull_target id=%s status=%s", entity.id, entity.status);
+                        });
     }
 }

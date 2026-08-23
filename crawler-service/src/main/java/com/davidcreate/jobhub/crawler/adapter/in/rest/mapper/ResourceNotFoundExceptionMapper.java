@@ -16,7 +16,7 @@ public class ResourceNotFoundExceptionMapper
 
         return Response.status(Response.Status.NOT_FOUND)
                 .entity(new ErrorResponse(
-                        404,
+                        "Not Found",
                         ex.getMessage()))
                 .build();
     }

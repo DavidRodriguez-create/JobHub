@@ -6,6 +6,7 @@ import com.davidcreate.jobhub.auth.domain.exception.ValidationException;
  * A destructive action that must be confirmed with an emailed verification code.
  */
 public enum VerificationAction {
+    VERIFY_EMAIL("verify-email"),
     DELETE_ACCOUNT("delete-account"),
     DELETE_ALL_APPLICATIONS("delete-all-applications");
 

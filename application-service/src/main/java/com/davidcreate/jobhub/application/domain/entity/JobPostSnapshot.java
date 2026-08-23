@@ -17,6 +17,7 @@ public class JobPostSnapshot {
     private final String contentHash;
     private final String title;
     private final String company;
+    private final String companyLogoUrl;
     private final String url;
     private final String location;
     private final OffsetDateTime snapshottedAt;

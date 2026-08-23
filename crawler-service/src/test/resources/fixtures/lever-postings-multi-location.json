@@ -1,0 +1,82 @@
+[
+  {
+    "text": "Backend Engineer",
+    "hostedUrl": "https://jobs.lever.co/Acme/319-multi-01",
+    "categories": {
+      "location": "Barcelona, Spain",
+      "allLocations": ["Barcelona, Spain", "Amsterdam, Netherlands", "Paris, France"],
+      "commitment": "Full-time"
+    },
+    "descriptionPlain": "Backend engineering role, multiple offices open."
+  },
+  {
+    "text": "Support Engineer",
+    "hostedUrl": "https://jobs.lever.co/Acme/319-multi-02",
+    "categories": {
+      "location": "Madrid, Spain",
+      "allLocations": ["Madrid, Spain"],
+      "commitment": "Full-time"
+    },
+    "descriptionPlain": "Single-office support role."
+  },
+  {
+    "text": "Platform Engineer",
+    "hostedUrl": "https://jobs.lever.co/Acme/319-multi-03",
+    "categories": {
+      "location": "Barcelona, Spain",
+      "allLocations": ["Barcelona, Spain", "Amsterdam, Netherlands", "Barcelona, Spain"],
+      "commitment": "Full-time"
+    },
+    "descriptionPlain": "Platform role, canonical office repeated in the list."
+  },
+  {
+    "text": "Data Engineer",
+    "hostedUrl": "https://jobs.lever.co/Acme/319-multi-04",
+    "categories": {
+      "location": "Barcelona, Spain",
+      "allLocations": ["barcelona, spain", "AMSTERDAM, NETHERLANDS"],
+      "commitment": "Full-time"
+    },
+    "descriptionPlain": "Data role, canonical office repeated with different casing."
+  },
+  {
+    "text": "Account Executive",
+    "hostedUrl": "https://jobs.lever.co/Acme/319-multi-05",
+    "categories": {
+      "location": "Barcelona, Spain",
+      "allLocations": ["Barcelona, Spain", "Madrid, Spain"],
+      "commitment": "Full-time"
+    },
+    "descriptionPlain": "Sales role, two Spanish cities."
+  },
+  {
+    "text": "Site Reliability Engineer",
+    "hostedUrl": "https://jobs.lever.co/Acme/319-multi-06",
+    "categories": {
+      "location": "Berlin, Germany",
+      "allLocations": ["Berlin, Germany", "Remote"],
+      "commitment": "Full-time"
+    },
+    "descriptionPlain": "SRE role, also open remotely."
+  },
+  {
+    "text": "QA Engineer",
+    "hostedUrl": "https://jobs.lever.co/Acme/319-multi-08",
+    "categories": {
+      "location": "Madrid, Spain",
+      "allLocations": [],
+      "commitment": "Full-time"
+    },
+    "descriptionPlain": "QA role, allLocations present but empty."
+  },
+  {
+    "text": "Unlisted Role",
+    "hostedUrl": "https://jobs.lever.co/Acme/319-multi-09",
+    "categories": {
+      "location": "",
+      "allLocations": [],
+      "commitment": "Full-time"
+    },
+    "descriptionPlain": "No location data at all."
+  }
+]

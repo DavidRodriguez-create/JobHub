@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+# paths-filter calls the PR "list files" API, which needs pull-requests:read.
+# Without this block the default token is contents:read only → "Resource not
+# accessible by integration". Jobs only read the repo, so this is least-privilege.
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -25,6 +32,7 @@ jobs:
               - 'job-service/**'
               - 'auth-service/**'
               - 'application-service/**'
+              - 'notification-service/**'
               - 'db/**'
               - '.github/workflows/ci.yml'
             frontend:
@@ -80,6 +88,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Test (no-op until the UI test script lands on the target branch)
+        run: pnpm run --if-present test:run
 
       - name: Build
         run: pnpm run build

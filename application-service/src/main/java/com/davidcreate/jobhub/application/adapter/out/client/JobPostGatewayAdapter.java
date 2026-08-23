@@ -24,8 +24,11 @@ public class JobPostGatewayAdapter implements JobPostGateway {
     public Optional<JobPostView> findById(UUID jobPostId) {
         try {
             JobPostRemoteResponse r = client.getById(jobPostId);
+            String companyName = r.company() != null ? r.company().name() : null;
+            String companyLogoUrl = r.company() != null ? r.company().logoUrl() : null;
             return Optional.of(new JobPostView(
-                    r.id(), r.title(), r.url(), r.description(), r.location()));
+                    r.id(), r.title(), r.url(), r.description(), r.location(),
+                    companyName, companyLogoUrl));
         } catch (NotFoundException nf) {
             return Optional.empty();
         } catch (WebApplicationException ex) {

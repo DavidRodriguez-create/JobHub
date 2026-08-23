@@ -1,9 +1,9 @@
 package com.davidcreate.jobhub.auth.unit_tests.application.usecase;
 
 import com.davidcreate.jobhub.auth.application.port.in.RegisterUserCommand;
-import com.davidcreate.jobhub.auth.application.port.in.SendEmailVerificationUseCase;
 import com.davidcreate.jobhub.auth.application.port.out.PasswordHasher;
 import com.davidcreate.jobhub.auth.application.port.out.UserRepository;
+import com.davidcreate.jobhub.auth.application.usecase.EmailVerificationService;
 import com.davidcreate.jobhub.auth.application.usecase.RegisterUserService;
 import com.davidcreate.jobhub.auth.domain.entity.User;
 import com.davidcreate.jobhub.auth.domain.exception.EmailAlreadyRegisteredException;
@@ -32,11 +32,11 @@ class RegisterUserServiceTest {
 
     @Mock UserRepository userRepository;
     @Mock PasswordHasher passwordHasher;
-    @Mock SendEmailVerificationUseCase sendEmailVerification;
+    @Mock EmailVerificationService emailVerificationService;
     @InjectMocks RegisterUserService service;
 
     @Test
-    @DisplayName("hashes password and saves user when email is new")
+    @DisplayName("hashes password, saves user, and dispatches verify-email code when email is new")
     void registersNewUser() {
         var cmd = new RegisterUserCommand("Alice", "Martin", "Alice@Example.com", "test1234");
         when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.empty());
@@ -54,7 +54,7 @@ class RegisterUserServiceTest {
         assertThat(captor.getValue().getEmail()).isEqualTo("alice@example.com");
         assertThat(captor.getValue().getPasswordHash()).isEqualTo("hashed");
         assertThat(captor.getValue().isEmailVerified()).isFalse();
-        verify(sendEmailVerification).sendFor(any(User.class));
+        verify(emailVerificationService).sendFor(any(User.class));
     }
 
     @Test

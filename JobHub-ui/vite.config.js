@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 const AUTH = process.env.VITE_AUTH_TARGET || "http://localhost:8082";
 const JOBS = process.env.VITE_JOBS_TARGET || "http://localhost:8081";
 const APPS = process.env.VITE_APPS_TARGET || "http://localhost:8083";
+const NOTIFICATIONS = process.env.VITE_NOTIFICATIONS_TARGET || "http://localhost:8084";
 
 // In a container the source is bind-mounted, where inotify file events don't
 // propagate (Windows/WSL/podman) — Vite then serves stale modules. Polling fixes
@@ -22,6 +23,7 @@ export default defineConfig({
       "/auth": { target: AUTH, changeOrigin: true },
       "/jobs": { target: JOBS, changeOrigin: true },
       "/applications": { target: APPS, changeOrigin: true },
+      "/notifications": { target: NOTIFICATIONS, changeOrigin: true },
     },
   },
 });

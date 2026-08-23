@@ -24,7 +24,7 @@ public class GlobalExceptionMapper
         LOG.errorf(ex, "Unhandled exception: %s", ex.getMessage());
         return Response.serverError()
                 .entity(new ErrorResponse(
-                        500,
+                        "Internal Server Error",
                         "Internal server error"))
                 .build();
     }

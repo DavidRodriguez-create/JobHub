@@ -69,18 +69,22 @@ nav:
       - Overview: architecture/overview.md
       - Hexagonal (Ports & Adapters): architecture/hexagonal.md
       - Clean (Concentric layers): architecture/clean.md
+      - Decision records: architecture/adr/index.md
   - Development:
       - Local setup: development/local-setup.md
       - Conventions: development/conventions.md
       - Testing: development/testing.md
       - Adding a feature: development/adding-a-feature.md
+      - Documentation site: development/docs-site.md
   - Services:
       - crawler-service: services/crawler.md
       - job-service: services/job.md
       - auth-service: services/auth.md
       - application-service: services/application.md
+      - notification-service: services/notification.md
   - API reference:
       - auth-service: api/auth.md
       - job-service: api/job.md
       - application-service: api/application.md
+      - notification-service: api/notification.md
   - Deployment: deployment.md

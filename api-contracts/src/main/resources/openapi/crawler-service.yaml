@@ -1,0 +1,282 @@
+openapi: 3.0.3
+info:
+  title: JobHub · Crawler Service
+  version: 1.0.0
+  description: |
+    Internal-only API surface of crawler-service (story #574, ADR 0033).
+
+    crawler-service has **no published port**: it listens on 8081 inside the container
+    network only, has no `ports:` block in either compose file, and has no
+    `quarkus-smallrye-jwt`. Nothing here is reachable from the internet or from the UI.
+    The only callers are other JobHub backend services on the same network.
+
+    Scope of this contract: the write side of `crawler.trigger_request`. crawler-service
+    is the sole writer of its own schema; job-service asks for a pass to be queued or
+    cancelled over `/internal/trigger-requests` instead of writing the table cross-schema.
+    Reads are unaffected: job-service keeps `SELECT` on `crawler.trigger_request` and the
+    admin status/history panel still reads directly.
+
+servers:
+  - url: /
+    description: crawler-service:8081 on the container network. Not host-published.
+
+security:
+  - serviceKeyAuth: []
+
+tags:
+  - name: Internal
+    description: |
+      Service-to-service endpoints. Protected by a pre-shared API key
+      (`X-Service-Key` header) rather than a user JWT. crawler-service has no
+      JWT support at all, so this is the only authentication scheme it exposes.
+
+components:
+  securitySchemes:
+    serviceKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Service-Key
+      description: |
+        Pre-shared API key for service-to-service calls. The value must match the
+        deployment secret (`JOBHUB_INTERNAL_SERVICE_KEY` env var, config key
+        `jobhub.internal.service-key`). A missing or non-matching key is rejected with
+        **401** by the `ServiceKeyFilter`, before the resource method runs.
+
+  schemas:
+
+    # ── Enums (mirror job-service.yaml, same column values) ──────────────────────
+
+    TriggerKind:
+      x-implementation-status: existing
+      type: string
+      enum: [crawl, enrichment]
+      description: |
+        Which background pass to run. `crawl` pulls the next batch of job-board targets;
+        `enrichment` runs the LLM enrichment pass over postings still awaiting it.
+
+    TriggerOrigin:
+      x-implementation-status: existing
+      type: string
+      enum: [manual, scheduled]
+      description: |
+        Who started the run (story #398, ADR 0032). Requests arriving on this endpoint are
+        `manual` by definition: `scheduled` rows are enqueued by crawler-service's own
+        scheduler in-process and never travel over HTTP.
+
+    TriggerStatusValue:
+      x-implementation-status: existing
+      type: string
+      enum: [queued, running, succeeded, failed, cancel_requested, cancelled]
+      description: |
+        Lifecycle of a single `crawler.trigger_request` row. Value set is pinned by the
+        `chk_trigger_request_status` CHECK constraint in
+        `db/init/018-crawler-trigger-cancel.sql`.
+
+    # ── Request / response bodies ────────────────────────────────────────────────
+
+    QueueTriggerRequest:
+      x-implementation-status: planned
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          $ref: '#/components/schemas/TriggerKind'
+        origin:
+          $ref: '#/components/schemas/TriggerOrigin'
+        requestedBy:
+          type: string
+          format: uuid
+          description: |
+            The requesting admin's user id (the JWT subject job-service authenticated).
+            Audit only: crawler-service does not resolve or authorize it, and stores it
+            verbatim in `requested_by`. Nullable for system-originated requests.
+      description: |
+        Queues one pass. crawler-service applies the "one active row per kind" rule
+        server-side: the partial unique index
+        `uq_trigger_request_active_kind_status` in
+        `db/init/060-crawler-trigger-request-active-unique.sql` permits one `queued` row
+        and one `running` row per kind to coexist, so a second `queued` row of the same
+        kind is a **409**, while queueing behind an already-`running` pass succeeds
+        (story #398, AC-8).
+
+    TriggerRequestResponse:
+      x-implementation-status: planned
+      type: object
+      required: [id, kind, status, origin, requestedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the `crawler.trigger_request` row.
+        kind:
+          $ref: '#/components/schemas/TriggerKind'
+        status:
+          $ref: '#/components/schemas/TriggerStatusValue'
+        origin:
+          $ref: '#/components/schemas/TriggerOrigin'
+        requestedBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: Audit value echoed back from the stored row.
+        requestedAt:
+          type: string
+          format: date-time
+          description: When crawler-service recorded the row (server clock, not the caller's).
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Set only when the cancel took effect immediately (a `queued` row cancelled
+            before it was ever claimed). Null otherwise.
+        resultSummary:
+          type: string
+          nullable: true
+          description: Human-readable summary, set on immediate cancellation.
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error title
+        message:
+          type: string
+          description: Detail explaining what went wrong
+
+paths:
+
+  # ── Internal: trigger-request write side (story #574, ADR 0033) ───────────────
+
+  /internal/trigger-requests:
+    post:
+      tags: [Internal]
+      operationId: queueTriggerRequest
+      summary: Queue a crawl or enrichment pass (service-to-service)
+      x-implementation-status: existing
+      description: |
+        Records a new `queued` row in `crawler.trigger_request` on behalf of a calling
+        service. Replaces job-service's cross-schema INSERT (ADR 0033): after this story
+        `job_user` no longer holds INSERT on the table (`db/init/061`).
+
+        crawler-service is the sole authority on acceptance. It re-checks the active-row
+        rule itself rather than trusting the caller's pre-check, and treats a unique-index
+        violation on `uq_trigger_request_active_kind_status` as the 409 below, so two
+        concurrent callers cannot both win.
+
+        The caller performs its own user-facing authorization (admin group, ADR 0019 2FA)
+        before calling. crawler-service authenticates only the *service*, via
+        `X-Service-Key`.
+      security:
+        - serviceKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueueTriggerRequest'
+      responses:
+        '202':
+          description: |
+            Request accepted and recorded as a `queued` row. `status` is always `queued`.
+            The pass itself runs asynchronously once the scheduler claims the row.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerRequestResponse'
+        '400':
+          description: Missing or unknown `kind`, or a malformed `requestedBy` uuid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid `X-Service-Key`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: |
+            A `queued` request of this kind already exists, so a second one would breach
+            `uq_trigger_request_active_kind_status`. Note this is NOT returned merely
+            because a pass of this kind is `running`: a manual request queued behind a
+            running pass is accepted with 202 (story #398, AC-8).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/trigger-requests/{kind}/cancel:
+    post:
+      tags: [Internal]
+      operationId: cancelTriggerRequest
+      summary: Cancel the active pass of a kind (service-to-service)
+      x-implementation-status: existing
+      description: |
+        Requests cancellation of the currently active (`queued` or `running`) request for
+        the given kind. Replaces job-service's cross-schema UPDATE (ADR 0033): after this
+        story `job_user` no longer holds UPDATE on the table (`db/init/061`).
+
+        Mechanism is unchanged from ADR 0006, it just moves inside crawler-service. A
+        `queued` row that was never claimed goes straight to the terminal `cancelled`
+        (stamping `finished_at` and `result_summary`). A `running` row goes to the
+        transitional `cancel_requested`; the batch loop observes it and stops, then writes
+        `cancelled` itself. Only the status/finish columns are written: `origin`,
+        `outcome` and every `progress_*` column are untouched by this operation.
+
+        The operation is idempotent in effect on a row already in `cancel_requested`:
+        such a row is not "active", so a repeat call returns 404.
+      security:
+        - serviceKeyAuth: []
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/TriggerKind'
+          description: Which kind of pass to cancel.
+      responses:
+        '200':
+          description: |
+            Cancellation acknowledged. `status` is `cancelled` if the row was `queued`
+            (immediate), or `cancel_requested` if it was `running` (cooperative).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerRequestResponse'
+        '400':
+          description: Unknown `kind` path value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid `X-Service-Key`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: |
+            No active (`queued` or `running`) request of this kind exists: never triggered,
+            already terminal, or already in `cancel_requested`. job-service maps this back
+            to the 409 its own public cancel endpoint has always returned, so the admin
+            panel's contract does not change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

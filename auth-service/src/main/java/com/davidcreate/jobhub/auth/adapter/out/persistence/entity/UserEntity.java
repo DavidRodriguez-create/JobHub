@@ -32,7 +32,7 @@ public class UserEntity extends PanacheEntityBase {
     @Column(name = "email", nullable = false, unique = true)
     public String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash", nullable = true)
     public String passwordHash;
 
     @Column(name = "email_verified", nullable = false)
@@ -40,6 +40,9 @@ public class UserEntity extends PanacheEntityBase {
 
     @Column(name = "email_verified_at")
     public OffsetDateTime emailVerifiedAt;
+
+    @Column(name = "two_factor_enabled", nullable = false)
+    public boolean twoFactorEnabled;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     public OffsetDateTime createdAt;

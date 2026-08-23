@@ -1,0 +1,1707 @@
+{
+  "totalFound": 250,
+  "offset": 0,
+  "limit": 100,
+  "content": [
+    {
+      "id": "gen-0000",
+      "name": "Generated Posting 0",
+      "refNumber": "REQ-GEN-0",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0001",
+      "name": "Generated Posting 1",
+      "refNumber": "REQ-GEN-1",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0002",
+      "name": "Generated Posting 2",
+      "refNumber": "REQ-GEN-2",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0003",
+      "name": "Generated Posting 3",
+      "refNumber": "REQ-GEN-3",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0004",
+      "name": "Generated Posting 4",
+      "refNumber": "REQ-GEN-4",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0005",
+      "name": "Generated Posting 5",
+      "refNumber": "REQ-GEN-5",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0006",
+      "name": "Generated Posting 6",
+      "refNumber": "REQ-GEN-6",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0007",
+      "name": "Generated Posting 7",
+      "refNumber": "REQ-GEN-7",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0008",
+      "name": "Generated Posting 8",
+      "refNumber": "REQ-GEN-8",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0009",
+      "name": "Generated Posting 9",
+      "refNumber": "REQ-GEN-9",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0010",
+      "name": "Generated Posting 10",
+      "refNumber": "REQ-GEN-10",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0011",
+      "name": "Generated Posting 11",
+      "refNumber": "REQ-GEN-11",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0012",
+      "name": "Generated Posting 12",
+      "refNumber": "REQ-GEN-12",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0013",
+      "name": "Generated Posting 13",
+      "refNumber": "REQ-GEN-13",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0014",
+      "name": "Generated Posting 14",
+      "refNumber": "REQ-GEN-14",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0015",
+      "name": "Generated Posting 15",
+      "refNumber": "REQ-GEN-15",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0016",
+      "name": "Generated Posting 16",
+      "refNumber": "REQ-GEN-16",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0017",
+      "name": "Generated Posting 17",
+      "refNumber": "REQ-GEN-17",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0018",
+      "name": "Generated Posting 18",
+      "refNumber": "REQ-GEN-18",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0019",
+      "name": "Generated Posting 19",
+      "refNumber": "REQ-GEN-19",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0020",
+      "name": "Generated Posting 20",
+      "refNumber": "REQ-GEN-20",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0021",
+      "name": "Generated Posting 21",
+      "refNumber": "REQ-GEN-21",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0022",
+      "name": "Generated Posting 22",
+      "refNumber": "REQ-GEN-22",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0023",
+      "name": "Generated Posting 23",
+      "refNumber": "REQ-GEN-23",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0024",
+      "name": "Generated Posting 24",
+      "refNumber": "REQ-GEN-24",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0025",
+      "name": "Generated Posting 25",
+      "refNumber": "REQ-GEN-25",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0026",
+      "name": "Generated Posting 26",
+      "refNumber": "REQ-GEN-26",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0027",
+      "name": "Generated Posting 27",
+      "refNumber": "REQ-GEN-27",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0028",
+      "name": "Generated Posting 28",
+      "refNumber": "REQ-GEN-28",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0029",
+      "name": "Generated Posting 29",
+      "refNumber": "REQ-GEN-29",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0030",
+      "name": "Generated Posting 30",
+      "refNumber": "REQ-GEN-30",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0031",
+      "name": "Generated Posting 31",
+      "refNumber": "REQ-GEN-31",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0032",
+      "name": "Generated Posting 32",
+      "refNumber": "REQ-GEN-32",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0033",
+      "name": "Generated Posting 33",
+      "refNumber": "REQ-GEN-33",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0034",
+      "name": "Generated Posting 34",
+      "refNumber": "REQ-GEN-34",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0035",
+      "name": "Generated Posting 35",
+      "refNumber": "REQ-GEN-35",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0036",
+      "name": "Generated Posting 36",
+      "refNumber": "REQ-GEN-36",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0037",
+      "name": "Generated Posting 37",
+      "refNumber": "REQ-GEN-37",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0038",
+      "name": "Generated Posting 38",
+      "refNumber": "REQ-GEN-38",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0039",
+      "name": "Generated Posting 39",
+      "refNumber": "REQ-GEN-39",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0040",
+      "name": "Generated Posting 40",
+      "refNumber": "REQ-GEN-40",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0041",
+      "name": "Generated Posting 41",
+      "refNumber": "REQ-GEN-41",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0042",
+      "name": "Generated Posting 42",
+      "refNumber": "REQ-GEN-42",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0043",
+      "name": "Generated Posting 43",
+      "refNumber": "REQ-GEN-43",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0044",
+      "name": "Generated Posting 44",
+      "refNumber": "REQ-GEN-44",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0045",
+      "name": "Generated Posting 45",
+      "refNumber": "REQ-GEN-45",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0046",
+      "name": "Generated Posting 46",
+      "refNumber": "REQ-GEN-46",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0047",
+      "name": "Generated Posting 47",
+      "refNumber": "REQ-GEN-47",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0048",
+      "name": "Generated Posting 48",
+      "refNumber": "REQ-GEN-48",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0049",
+      "name": "Generated Posting 49",
+      "refNumber": "REQ-GEN-49",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0050",
+      "name": "Generated Posting 50",
+      "refNumber": "REQ-GEN-50",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0051",
+      "name": "Generated Posting 51",
+      "refNumber": "REQ-GEN-51",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0052",
+      "name": "Generated Posting 52",
+      "refNumber": "REQ-GEN-52",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0053",
+      "name": "Generated Posting 53",
+      "refNumber": "REQ-GEN-53",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0054",
+      "name": "Generated Posting 54",
+      "refNumber": "REQ-GEN-54",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0055",
+      "name": "Generated Posting 55",
+      "refNumber": "REQ-GEN-55",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0056",
+      "name": "Generated Posting 56",
+      "refNumber": "REQ-GEN-56",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0057",
+      "name": "Generated Posting 57",
+      "refNumber": "REQ-GEN-57",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0058",
+      "name": "Generated Posting 58",
+      "refNumber": "REQ-GEN-58",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0059",
+      "name": "Generated Posting 59",
+      "refNumber": "REQ-GEN-59",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0060",
+      "name": "Generated Posting 60",
+      "refNumber": "REQ-GEN-60",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0061",
+      "name": "Generated Posting 61",
+      "refNumber": "REQ-GEN-61",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0062",
+      "name": "Generated Posting 62",
+      "refNumber": "REQ-GEN-62",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0063",
+      "name": "Generated Posting 63",
+      "refNumber": "REQ-GEN-63",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0064",
+      "name": "Generated Posting 64",
+      "refNumber": "REQ-GEN-64",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0065",
+      "name": "Generated Posting 65",
+      "refNumber": "REQ-GEN-65",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0066",
+      "name": "Generated Posting 66",
+      "refNumber": "REQ-GEN-66",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0067",
+      "name": "Generated Posting 67",
+      "refNumber": "REQ-GEN-67",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0068",
+      "name": "Generated Posting 68",
+      "refNumber": "REQ-GEN-68",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0069",
+      "name": "Generated Posting 69",
+      "refNumber": "REQ-GEN-69",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0070",
+      "name": "Generated Posting 70",
+      "refNumber": "REQ-GEN-70",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0071",
+      "name": "Generated Posting 71",
+      "refNumber": "REQ-GEN-71",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0072",
+      "name": "Generated Posting 72",
+      "refNumber": "REQ-GEN-72",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0073",
+      "name": "Generated Posting 73",
+      "refNumber": "REQ-GEN-73",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0074",
+      "name": "Generated Posting 74",
+      "refNumber": "REQ-GEN-74",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0075",
+      "name": "Generated Posting 75",
+      "refNumber": "REQ-GEN-75",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0076",
+      "name": "Generated Posting 76",
+      "refNumber": "REQ-GEN-76",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0077",
+      "name": "Generated Posting 77",
+      "refNumber": "REQ-GEN-77",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0078",
+      "name": "Generated Posting 78",
+      "refNumber": "REQ-GEN-78",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0079",
+      "name": "Generated Posting 79",
+      "refNumber": "REQ-GEN-79",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0080",
+      "name": "Generated Posting 80",
+      "refNumber": "REQ-GEN-80",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0081",
+      "name": "Generated Posting 81",
+      "refNumber": "REQ-GEN-81",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0082",
+      "name": "Generated Posting 82",
+      "refNumber": "REQ-GEN-82",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0083",
+      "name": "Generated Posting 83",
+      "refNumber": "REQ-GEN-83",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0084",
+      "name": "Generated Posting 84",
+      "refNumber": "REQ-GEN-84",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0085",
+      "name": "Generated Posting 85",
+      "refNumber": "REQ-GEN-85",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0086",
+      "name": "Generated Posting 86",
+      "refNumber": "REQ-GEN-86",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0087",
+      "name": "Generated Posting 87",
+      "refNumber": "REQ-GEN-87",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0088",
+      "name": "Generated Posting 88",
+      "refNumber": "REQ-GEN-88",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0089",
+      "name": "Generated Posting 89",
+      "refNumber": "REQ-GEN-89",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0090",
+      "name": "Generated Posting 90",
+      "refNumber": "REQ-GEN-90",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0091",
+      "name": "Generated Posting 91",
+      "refNumber": "REQ-GEN-91",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0092",
+      "name": "Generated Posting 92",
+      "refNumber": "REQ-GEN-92",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0093",
+      "name": "Generated Posting 93",
+      "refNumber": "REQ-GEN-93",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0094",
+      "name": "Generated Posting 94",
+      "refNumber": "REQ-GEN-94",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0095",
+      "name": "Generated Posting 95",
+      "refNumber": "REQ-GEN-95",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0096",
+      "name": "Generated Posting 96",
+      "refNumber": "REQ-GEN-96",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0097",
+      "name": "Generated Posting 97",
+      "refNumber": "REQ-GEN-97",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0098",
+      "name": "Generated Posting 98",
+      "refNumber": "REQ-GEN-98",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    },
+    {
+      "id": "gen-0099",
+      "name": "Generated Posting 99",
+      "refNumber": "REQ-GEN-99",
+      "company": {
+        "identifier": "BoschGroup",
+        "name": "Bosch Group"
+      },
+      "location": {
+        "city": "Stuttgart",
+        "country": "Germany"
+      },
+      "typeOfEmployment": {
+        "id": "FULL_TIME",
+        "label": "Full-time"
+      }
+    }
+  ]
+}

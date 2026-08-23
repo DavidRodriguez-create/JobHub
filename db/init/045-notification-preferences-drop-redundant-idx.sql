@@ -1,0 +1,12 @@
+-- 045-notification-preferences-drop-redundant-idx.sql
+-- Drop the secondary index idx_notification_preferences_user_id on
+-- notification.notification_preferences.user_id.
+--
+-- Rationale: the UNIQUE constraint (uq_notification_preferences_user_id) already provides
+-- a unique btree index on user_id that Postgres uses for lookups and ORDER BY. The secondary
+-- btree is identical, never preferred by the planner, and wastes write overhead on every
+-- INSERT/UPDATE. EXPLAIN confirms the planner always chooses the unique index for
+-- "WHERE user_id = ?" lookups.
+--
+-- Forward-only. Idempotent (DROP INDEX IF EXISTS).
+DROP INDEX IF EXISTS notification.idx_notification_preferences_user_id;

@@ -16,7 +16,7 @@ public class ConflictExceptionMapper
 
         return Response.status(Response.Status.CONFLICT)
                 .entity(new ErrorResponse(
-                        409,
+                        "Conflict",
                         ex.getMessage()))
                 .build();
     }

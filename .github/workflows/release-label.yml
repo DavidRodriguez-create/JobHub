@@ -1,0 +1,51 @@
+# Compulsory PR gate: every pull request into main must carry exactly ONE
+# release:<patch|minor|major> label. That label is what `release.yml` reads after
+# the merge to decide how to bump the version, so a PR without one would produce
+# an unversionable merge. Failing here is cheaper than failing after the merge.
+#
+# Kept in its own workflow (not ci.yml) so that adding/removing a label re-runs
+# only this 5-second check instead of the whole Maven + pnpm build.
+#
+# Make it required: Settings -> Branches -> main -> Require status checks ->
+# add "release-label".
+name: Release label
+
+on:
+  pull_request:
+    branches: [main]
+    # labeled/unlabeled so the check re-reports as soon as the label is fixed;
+    # synchronize so a new head commit gets its own (still passing) result.
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  release-label:
+    name: release-label
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require exactly one release:<patch|minor|major> label
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          MATCHED="$(jq -r '.[] | select(test("^release:(patch|minor|major)$"))' <<< "$LABELS")"
+          COUNT="$(grep -c . <<< "$MATCHED" || true)"
+
+          if [ "$COUNT" -eq 1 ]; then
+            echo "OK: this PR will be released as a ${MATCHED#release:} bump."
+            exit 0
+          fi
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::This PR has no release label. Add exactly one of" \
+                 "'release:patch', 'release:minor' or 'release:major': the release" \
+                 "workflow reads it after the merge to bump the version. Rule of thumb:" \
+                 "major = breaking API/schema change, minor = new user-visible behaviour," \
+                 "patch = fix, refactor, docs, CI." >&2
+          else
+            echo "::error::This PR has ${COUNT} release labels ($(tr '\n' ' ' <<< "$MATCHED"))." \
+                 "Exactly one is required so the version bump is unambiguous." >&2
+          fi
+          exit 1

@@ -1,16 +1,18 @@
 # JobHub
 
-JobHub is a multi-module Maven monorepo: three backend services and a frontend, sharing a single
+JobHub is a multi-module Maven monorepo: five backend services and a frontend, sharing a single
 PostgreSQL 16 database with **schema-per-service** isolation. All backends are **Quarkus 3 on
 Java 21**.
 
 ```
 jobhub-parent (pom.xml)
-├── crawler-service      — scheduled batch crawling of job boards
-├── job-service          — REST API for browsing job postings
-├── auth-service         — user identity, sessions, JWT issuing
-├── application-service  — tracks the user's job applications
-└── JobHub-ui            — React + Vite frontend
+├── api-contracts         : OpenAPI specs, the single source of truth for every API
+├── crawler-service       : scheduled batch crawling of job boards
+├── job-service           : REST API for browsing job postings
+├── auth-service          : user identity, sessions, JWT issuing
+├── application-service   : tracks the user's job applications
+├── notification-service  : preferences, in-app notifications, weekly digest, reminders, ghosted alert
+└── JobHub-ui             : React + Vite frontend
 ```
 
 ## What each module does
@@ -21,17 +23,19 @@ jobhub-parent (pom.xml)
 | `job-service` | Browse/search job postings | Hexagonal | 8081 |
 | `auth-service` | Register/login, JWT signing, account management | Clean | 8082 (`/auth`) |
 | `application-service` | Create & track job applications | Hexagonal | 8083 |
+| `notification-service` | Preferences, in-app bell, weekly digest, interview reminders, ghosted alert | Hexagonal | 8084 |
 | `JobHub-ui` | React SPA | — | 5173 |
-| PostgreSQL 16 | One DB, schema per service (`crawler`, `job`, `auth`, `applications`) | — | 5432 |
+| PostgreSQL 16 | One DB, schema per service (`crawler`, `job`, `auth`, `applications`, `notification`) | — | 5432 |
 
 ## Where to go next
 
 - **Run it on your machine** → [Development → Local setup](development/local-setup.md)
-- **Understand the layering** → [Architecture → Overview](architecture/overview.md)
+- **Understand the topology and layering** → [Architecture → Overview](architecture/overview.md)
+- **See why something is the way it is** → [Decision records](architecture/adr/index.md)
 - **Add a feature** → [Development → Adding a feature](development/adding-a-feature.md)
 - **Call the APIs** → [API reference](api/auth.md) (rendered live from `api-contracts`)
 
 !!! info "Two architectures on purpose"
-    Technical, mechanistic services (`job`, `crawler`, `application`) use **Hexagonal**; the
-    domain-rich `auth-service` uses **Clean**. The [Architecture overview](architecture/overview.md)
-    explains when to pick which.
+    Technical, mechanistic services (`job`, `crawler`, `application`, `notification`) use
+    **Hexagonal**; the domain-rich `auth-service` uses **Clean**. The
+    [Architecture overview](architecture/overview.md) explains when to pick which.

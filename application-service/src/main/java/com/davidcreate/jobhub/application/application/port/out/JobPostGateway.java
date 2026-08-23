@@ -12,6 +12,8 @@ public interface JobPostGateway {
             String title,
             String url,
             String description,
-            String location) {
+            String location,
+            String companyName,
+            String companyLogoUrl) {
     }
 }

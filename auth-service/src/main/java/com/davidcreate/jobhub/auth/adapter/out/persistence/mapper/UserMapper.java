@@ -16,6 +16,7 @@ public class UserMapper {
                 .passwordHash(entity.passwordHash)
                 .emailVerified(entity.emailVerified)
                 .emailVerifiedAt(entity.emailVerifiedAt)
+                .twoFactorEnabled(entity.twoFactorEnabled)
                 .createdAt(entity.createdAt)
                 .updatedAt(entity.updatedAt)
                 .build();
@@ -30,6 +31,7 @@ public class UserMapper {
         entity.passwordHash = user.getPasswordHash();
         entity.emailVerified = user.isEmailVerified();
         entity.emailVerifiedAt = user.getEmailVerifiedAt();
+        entity.twoFactorEnabled = user.isTwoFactorEnabled();
         entity.createdAt = user.getCreatedAt();
         entity.updatedAt = user.getUpdatedAt();
         return entity;
@@ -42,5 +44,6 @@ public class UserMapper {
         entity.passwordHash = user.getPasswordHash();
         entity.emailVerified = user.isEmailVerified();
         entity.emailVerifiedAt = user.getEmailVerifiedAt();
+        entity.twoFactorEnabled = user.isTwoFactorEnabled();
     }
 }

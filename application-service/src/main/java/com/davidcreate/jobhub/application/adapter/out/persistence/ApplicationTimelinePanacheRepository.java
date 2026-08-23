@@ -7,6 +7,7 @@ import com.davidcreate.jobhub.application.domain.valueobject.TimelineEntry;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -16,6 +17,8 @@ import java.util.UUID;
 public class ApplicationTimelinePanacheRepository
         implements ApplicationTimelineRepository, PanacheRepositoryBase<ApplicationTimelineEntity, UUID> {
 
+    private static final Logger LOG = Logger.getLogger(ApplicationTimelinePanacheRepository.class);
+
     @Override
     public void append(UUID applicationId, ApplicationStatus status, OffsetDateTime occurredAt) {
         ApplicationTimelineEntity e = new ApplicationTimelineEntity();
@@ -23,6 +26,7 @@ public class ApplicationTimelinePanacheRepository
         e.status = status;
         e.occurredAt = occurredAt;
         persist(e);
+        LOG.infof("INSERT applications.application_timeline applicationId=%s status=%s", applicationId, status);
     }
 
     @Override
@@ -36,7 +40,8 @@ public class ApplicationTimelinePanacheRepository
 
     @Override
     public void removeByUser(UUID userId) {
-        delete("applicationId in (select a.id from ApplicationEntity a where a.userId = ?1)", userId);
+        long deleted = delete("applicationId in (select a.id from ApplicationEntity a where a.userId = ?1)", userId);
+        LOG.infof("DELETE applications.application_timeline userId=%s -> %d row(s)", userId, deleted);
     }
 
     @Override

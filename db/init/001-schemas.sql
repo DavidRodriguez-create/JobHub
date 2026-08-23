@@ -5,6 +5,7 @@ CREATE SCHEMA crawler;
 CREATE SCHEMA job;
 CREATE SCHEMA auth;
 CREATE SCHEMA applications;
+CREATE SCHEMA notification;
 
 -- Set ownership and grant schema usage to respective service users
 -- crawler schema
@@ -35,8 +36,16 @@ GRANT CREATE ON SCHEMA applications TO applications_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA applications GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO applications_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA applications GRANT USAGE, SELECT ON SEQUENCES TO applications_user;
 
+-- notification schema
+ALTER SCHEMA notification OWNER TO notification_user;
+GRANT USAGE ON SCHEMA notification TO notification_user;
+GRANT CREATE ON SCHEMA notification TO notification_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA notification GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO notification_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA notification GRANT USAGE, SELECT ON SEQUENCES TO notification_user;
+
 -- Admin user gets full permissions on all schemas for migrations
 GRANT USAGE, CREATE ON SCHEMA crawler TO jobhub_admin;
 GRANT USAGE, CREATE ON SCHEMA job TO jobhub_admin;
 GRANT USAGE, CREATE ON SCHEMA auth TO jobhub_admin;
 GRANT USAGE, CREATE ON SCHEMA applications TO jobhub_admin;
+GRANT USAGE, CREATE ON SCHEMA notification TO jobhub_admin;

@@ -19,6 +19,7 @@ public class User {
     private final String passwordHash;
     private final boolean emailVerified;
     private final OffsetDateTime emailVerifiedAt;
+    private final boolean twoFactorEnabled;
     private final OffsetDateTime createdAt;
     private final OffsetDateTime updatedAt;
 }

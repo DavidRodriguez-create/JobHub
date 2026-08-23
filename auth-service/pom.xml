@@ -27,6 +27,10 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
             <artifactId>quarkus-hibernate-orm-panache</artifactId>
         </dependency>
         <dependency>
@@ -55,6 +59,10 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
             <artifactId>quarkus-container-image-jib</artifactId>
         </dependency>
         <dependency>
@@ -62,8 +70,17 @@
             <artifactId>quarkus-arc</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-mailer</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
         </dependency>
 
         <!-- Test dependencies -->
@@ -98,6 +115,14 @@
             <version>3.26.3</version>
             <scope>test</scope>
         </dependency>
+        <!-- Social login (ADR 0027, story #459) is auth-service's first outbound HTTP
+             dependency; WireMock stands in for the google/github provider endpoints. -->
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>3.9.2</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -123,6 +148,82 @@
                 <configuration>
                     <parameters>true</parameters>
                 </configuration>
+            </plugin>
+            <!-- Three executions keep DevServices to a single shared Postgres container for the
+                 vast majority of tests while avoiding a JVM-classloader hazard: a @QuarkusTest
+                 class that declares a non-default @TestProfile forces Quarkus to shut down and
+                 reboot with a new QuarkusClassLoader. A second such reboot in a fork that already
+                 booted Quarkus once collides with the JVM-wide 'app' parent loader's stale
+                 definitions of JAX-RS classes (LinkageError: loader constraint violation), which
+                 then poisons every later test in that fork. The component-tests execution
+                 (default profile only, reuseForks=true) shares ONE fork and therefore ONE
+                 DevServices Postgres container for the large majority of auth-service's
+                 @QuarkusTest classes. The component-tests-profiles execution isolates the classes
+                 that switch @TestProfile into their own forkCount=1/reuseForks=false group: each
+                 gets a fresh JVM (so no stale classloader to collide with) without reintroducing
+                 container-per-class churn for the bulk of the suite. Story #506, ticket #510. -->
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Disable the default single execution; replaced by the ones below. -->
+                    <skip>true</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>unit-tests</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <skip>false</skip>
+                            <reuseForks>true</reuseForks>
+                            <forkCount>1</forkCount>
+                            <includes>
+                                <include>**/unit_tests/**/*Test.java</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>component-tests</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <skip>false</skip>
+                            <reuseForks>true</reuseForks>
+                            <forkCount>1</forkCount>
+                            <includes>
+                                <include>**/component_tests/**/*Test.java</include>
+                            </includes>
+                            <excludes>
+                                <exclude>**/component_tests/AdminAllowlistComponentTest.java</exclude>
+                                <exclude>**/component_tests/OAuthProvidersNoneConfiguredComponentTest.java</exclude>
+                                <exclude>**/component_tests/OAuthProvidersOnlyGoogleConfiguredComponentTest.java</exclude>
+                                <exclude>**/component_tests/OAuthProvidersOnlyGithubConfiguredComponentTest.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>component-tests-profiles</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <skip>false</skip>
+                            <reuseForks>false</reuseForks>
+                            <forkCount>1</forkCount>
+                            <includes>
+                                <include>**/component_tests/AdminAllowlistComponentTest.java</include>
+                                <include>**/component_tests/OAuthProvidersNoneConfiguredComponentTest.java</include>
+                                <include>**/component_tests/OAuthProvidersOnlyGoogleConfiguredComponentTest.java</include>
+                                <include>**/component_tests/OAuthProvidersOnlyGithubConfiguredComponentTest.java</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <!-- Generate JWT keys at build time (config inherited from parent pluginManagement). -->
             <plugin>

@@ -52,7 +52,8 @@ class ApplicationResourceComponentTest {
         when(jobPostGateway.findById(any())).thenAnswer(inv -> {
             UUID id = inv.getArgument(0);
             return Optional.of(new JobPostGateway.JobPostView(
-                    id, "Senior Dev", "https://job/" + id, "great role", "Madrid, Spain"));
+                    id, "Senior Dev", "https://job/" + id, "great role", "Madrid, Spain",
+                    "Acme Corp", "https://cdn.example/acme.png"));
         });
     }
 
@@ -86,7 +87,69 @@ class ApplicationResourceComponentTest {
     @Test
     @TestSecurity(user = USER_A, roles = "user")
     @JwtSecurity(claims = @Claim(key = "sub", value = USER_A))
-    @DisplayName("POST manual jobDetails → 201, no snapshot, live job summary")
+    @DisplayName("AS244-C-04: POST crawled job-post with a job-service company logo → 201, job.companyLogoUrl frozen on the snapshot")
+    void applyToCrawledCapturesCompanyLogo() {
+        UUID id = given().contentType("application/json")
+                .body(Map.of("jobPostId", jobPostId.toString()))
+                .when().post(BASE)
+                .then().statusCode(201)
+                .body("job.companyLogoUrl", equalTo("https://cdn.example/acme.png"))
+                .extract().jsonPath().getUUID("id");
+
+        given().when().get(BASE + "/" + id)
+                .then().statusCode(200)
+                .body("job.companyLogoUrl", equalTo("https://cdn.example/acme.png"));
+    }
+
+    @Test
+    @TestSecurity(user = USER_A, roles = "user")
+    @JwtSecurity(claims = @Claim(key = "sub", value = USER_A))
+    @DisplayName("AS244-CW-04/EC-244-2: job-service company.logoUrl=\"\" is normalised to null, never an empty string, on the snapshot read")
+    void applyToCrawledEmptyLogoUrlNormalisedToNull() {
+        UUID emptyLogoJobPostId = UUID.randomUUID();
+        when(jobPostGateway.findById(emptyLogoJobPostId)).thenReturn(Optional.of(new JobPostGateway.JobPostView(
+                emptyLogoJobPostId, "Other Dev", "https://job/" + emptyLogoJobPostId, "role", "Remote",
+                "Foo Inc", "")));
+
+        given().contentType("application/json")
+                .body(Map.of("jobPostId", emptyLogoJobPostId.toString()))
+                .when().post(BASE)
+                .then().statusCode(201)
+                .body("job.company", equalTo("Foo Inc"))
+                .body("job.companyLogoUrl", nullValue());
+    }
+
+    @Test
+    @TestSecurity(user = USER_A, roles = "user")
+    @JwtSecurity(claims = @Claim(key = "sub", value = USER_A))
+    @DisplayName("AS244-C-06: a crawled application backed by a pre-fix snapshot (company=null, "
+            + "companyLogoUrl=null) returns 200 with both null and job.title still populated, no 500")
+    void applyToCrawledPreFixSnapshotShapeReturnsNullsNotError() {
+        UUID preFixJobPostId = UUID.randomUUID();
+        when(jobPostGateway.findById(preFixJobPostId)).thenReturn(Optional.of(new JobPostGateway.JobPostView(
+                preFixJobPostId, "Legacy Crawled Role", "https://job/" + preFixJobPostId, "role", "Remote",
+                null, null)));
+
+        UUID id = given().contentType("application/json")
+                .body(Map.of("jobPostId", preFixJobPostId.toString()))
+                .when().post(BASE)
+                .then().statusCode(201)
+                .body("job.title", equalTo("Legacy Crawled Role"))
+                .body("job.company", nullValue())
+                .body("job.companyLogoUrl", nullValue())
+                .extract().jsonPath().getUUID("id");
+
+        given().when().get(BASE + "/" + id)
+                .then().statusCode(200)
+                .body("job.title", equalTo("Legacy Crawled Role"))
+                .body("job.company", nullValue())
+                .body("job.companyLogoUrl", nullValue());
+    }
+
+    @Test
+    @TestSecurity(user = USER_A, roles = "user")
+    @JwtSecurity(claims = @Claim(key = "sub", value = USER_A))
+    @DisplayName("POST manual jobDetails → 201, no snapshot, live job summary, no logo (manual entries never have one)")
     void applyManual() {
         given().contentType("application/json")
                 .body(Map.of("jobDetails", Map.of(
@@ -97,7 +160,8 @@ class ApplicationResourceComponentTest {
                 .body("jobPostSnapshotId", nullValue())
                 .body("job.title", equalTo("Indie Role"))
                 .body("job.company", equalTo("Acme"))
-                .body("job.location", equalTo("Remote"));
+                .body("job.location", equalTo("Remote"))
+                .body("job.companyLogoUrl", nullValue());
     }
 
     @Test

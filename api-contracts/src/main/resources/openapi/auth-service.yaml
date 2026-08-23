@@ -15,10 +15,30 @@ security:
 tags:
   - name: Auth
     description: Public registration and login endpoints
+  - name: OAuth
+    description: |
+      Social login via external identity providers (Google/Gmail and GitHub),
+      authorization-code flow. The browser is sent to the provider by the URL from
+      `GET /oauth/{provider}/start`; after consent the provider redirects the browser
+      back to the JobHub UI, which relays the `code` + `state` to
+      `POST /oauth/{provider}/callback`. auth-service exchanges the code server-side,
+      reads the provider userinfo, creates-or-links the local account, and returns the
+      same `LoginResponse` (JWT) as `POST /login`. See ADR 0027.
   - name: Account
     description: Authenticated account management
+  - name: TwoFactor
+    description: |
+      TOTP-based two-factor authentication setup, verification, and management.
+      All endpoints require a valid Bearer token (the user must be logged in).
+      See ADR 0012 for the full design.
   - name: Verifications
     description: Email-based two-factor verification for irreversible operations
+  - name: Internal
+    description: |
+      Service-to-service endpoints. Protected by a pre-shared API key
+      (`X-Service-Key` header) rather than a user JWT. Not exposed to the
+      internet or the UI, only called by other JobHub backend services on
+      the same network.
 
 components:
   securitySchemes:
@@ -27,6 +47,14 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: "MicroProfile JWT. Obtain a token from POST /auth/login; send as `Authorization: Bearer <token>`."
+    serviceKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Service-Key
+      description: |
+        Pre-shared API key for service-to-service calls. The value must match the
+        deployment secret (`JOBHUB_INTERNAL_SERVICE_KEY` env var). Used by internal
+        endpoints that do not require a user JWT.
 
   schemas:
 
@@ -77,7 +105,11 @@ components:
           maxLength: 100
 
     ChangePasswordRequest:
-      description: Requires the current password before accepting a new one, preventing unauthorised changes.
+      description: |
+        Requires the current password before accepting a new one, preventing
+        unauthorised changes. When the account has two-factor authentication
+        enabled, a valid TOTP code (or unused backup code) must also be
+        supplied in `totpCode`.
       type: object
       required: [currentPassword, newPassword]
       properties:
@@ -88,23 +120,44 @@ components:
           type: string
           minLength: 8
           maxLength: 100
+        totpCode:
+          x-implementation-status: planned
+          type: string
+          pattern: '^\d{6}$|^[a-zA-Z0-9]{8}$'
+          description: |
+            Required when two-factor authentication is enabled on the account.
+            Accepts either a 6-digit TOTP code from the authenticator app or
+            an 8-character single-use backup code. Ignored when 2FA is not
+            enabled.
 
     VerifyEmailRequest:
-      description: Consumes the one-time token delivered by the verification email.
+      x-implementation-status: planned
+      description: |
+        Confirms account ownership at registration by submitting the 6-digit code
+        emailed to the address. The user is identified by `email` (they are not yet
+        logged in), and the code must match the newest unconsumed `verify-email` code
+        for that address and be unexpired.
       type: object
-      required: [token]
+      required: [email, code]
       properties:
-        token:
+        email:
           type: string
-          minLength: 1
+          format: email
+          maxLength: 254
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          description: The 6-digit code delivered by the registration / resend email.
 
     ResendVerificationRequest:
+      x-implementation-status: planned
       type: object
       required: [email]
       properties:
         email:
           type: string
           format: email
+          maxLength: 254
 
     VerifiedActionRequest:
       type: object
@@ -128,8 +181,12 @@ components:
           description: |
             The action this code will authorize. Included in the email body so the user
             knows exactly what they are confirming.
-            - `delete-account` — permanently deletes the account and all associated data
-            - `delete-all-applications` — permanently deletes all applications and their data
+            - `delete-account`: permanently deletes the account and all associated data
+            - `delete-all-applications`: permanently deletes all applications and their data
+
+            Note: the former `admin-trigger` action was removed in ADR 0019. Admin
+            crawl/enrichment triggers are now gated by the admin's own 2FA (see the internal
+            two-factor endpoints below), not by an emailed request code.
 
     ConsumeVerificationRequest:
       type: object
@@ -147,21 +204,205 @@ components:
           enum: [delete-account, delete-all-applications]
           description: The action the code must have been issued for. Must match the stored code.
 
+    # ── Two-factor authentication request schemas (ADR 0012) ─────────────────
+
+    TwoFactorLoginRequest:
+      x-implementation-status: planned
+      description: |
+        Second step of the two-factor login flow. The client submits the
+        short-lived challenge token received from `POST /auth/login` together
+        with a 6-digit TOTP code (or 8-character backup code) to obtain the
+        real JWT.
+      type: object
+      required: [twoFactorToken, totpCode]
+      properties:
+        twoFactorToken:
+          type: string
+          description: |
+            The opaque challenge token returned by `POST /auth/login` when
+            `twoFactorRequired` was true. Valid for 5 minutes and single-use.
+        totpCode:
+          type: string
+          pattern: '^\d{6}$|^[a-zA-Z0-9]{8}$'
+          description: |
+            A 6-digit TOTP code from the authenticator app, or an 8-character
+            single-use backup code.
+
+    VerifyTwoFactorSetupRequest:
+      x-implementation-status: planned
+      description: |
+        Confirms initial 2FA setup by validating the first TOTP code generated
+        by the user's authenticator app against the secret created by
+        `POST /account/2fa/setup`.
+      type: object
+      required: [totpCode]
+      properties:
+        totpCode:
+          type: string
+          pattern: '^\d{6}$'
+          description: The 6-digit code displayed by the authenticator app.
+
+    DisableTwoFactorRequest:
+      x-implementation-status: planned
+      description: |
+        Disables two-factor authentication on the account. Requires a valid
+        TOTP code (or backup code) to confirm the caller controls the
+        authenticator device.
+      type: object
+      required: [totpCode]
+      properties:
+        totpCode:
+          type: string
+          pattern: '^\d{6}$|^[a-zA-Z0-9]{8}$'
+          description: |
+            A 6-digit TOTP code from the authenticator app, or an 8-character
+            single-use backup code.
+
+    RegenerateBackupCodesRequest:
+      x-implementation-status: planned
+      description: |
+        Regenerates backup codes for an account with 2FA enabled. Invalidates
+        all prior backup codes. Requires a valid TOTP code to confirm the
+        caller controls the authenticator device.
+      type: object
+      required: [totpCode]
+      properties:
+        totpCode:
+          type: string
+          pattern: '^\d{6}$'
+          description: A 6-digit TOTP code from the authenticator app (backup codes not accepted here).
+
+    # ── OAuth (social login) schemas (ADR 0027) ─────────────────────────────
+
+    OAuthCallbackRequest:
+      x-implementation-status: planned
+      description: |
+        Relayed by the JobHub UI after the provider redirects the browser back with a
+        `code` and `state`. auth-service exchanges the `code` for a provider access token
+        server-side (confidential client, using the provider client secret), reads the
+        provider userinfo, then creates-or-links the local account. `state` is validated
+        against the value bound at `GET /oauth/{provider}/start` (CSRF protection); a
+        mismatch is rejected with 400.
+      type: object
+      required: [code, state]
+      properties:
+        code:
+          type: string
+          maxLength: 2048
+          description: The single-use authorization code issued by the provider.
+        state:
+          type: string
+          maxLength: 512
+          description: |
+            The opaque anti-CSRF value that was issued by `GET /oauth/{provider}/start`
+            and echoed back by the provider. Must match the bound value or the request
+            is rejected.
+
+    OAuthAuthorizationResponse:
+      x-implementation-status: planned
+      description: |
+        Returned by `GET /oauth/{provider}/start`. The UI redirects the browser to
+        `authorizationUrl` to begin the provider consent flow. The endpoint also binds
+        the embedded `state` for later CSRF validation on the callback.
+      type: object
+      required: [authorizationUrl]
+      properties:
+        authorizationUrl:
+          type: string
+          format: uri
+          description: |
+            The fully-formed provider authorization URL (client id, redirect URI, scope,
+            and `state` already applied). The UI sends the browser here.
+
+    OAuthProviderAvailability:
+      x-implementation-status: planned
+      description: |
+        One social-login provider and whether this deployment can actually offer it.
+        `available` reports only that auth-service holds a client id AND a client secret
+        for the provider; it is NOT a health probe and never contacts the provider.
+        Credentials themselves are never exposed.
+      type: object
+      required: [provider, available]
+      properties:
+        provider:
+          type: string
+          enum: [google, github]
+          description: |
+            The provider identifier, identical to the `{provider}` path value accepted by
+            `GET /oauth/{provider}/start` and `POST /oauth/{provider}/callback`.
+        available:
+          type: boolean
+          description: |
+            True when this deployment has both a client id and a client secret configured
+            for the provider, so `GET /oauth/{provider}/start` will succeed. False means the
+            provider is deliberately switched off here: the UI must hide (not disable-with-
+            error) that sign-in button, and `GET /oauth/{provider}/start` would answer 404.
+
+    OAuthProvidersResponse:
+      x-implementation-status: planned
+      description: |
+        Returned by `GET /oauth/providers`. Lists EVERY provider auth-service knows about,
+        each with its availability flag, so the UI can decide before rendering the login
+        screen which social buttons to show. Entries are returned in a stable order
+        (`google`, then `github`); a provider absent from the list is not supported by this
+        auth-service version at all.
+      type: object
+      required: [providers]
+      properties:
+        providers:
+          type: array
+          description: One entry per known provider, in stable declaration order.
+          items:
+            $ref: '#/components/schemas/OAuthProviderAvailability'
+
     # ── Response schemas ───────────────────────────────────────────────────────
 
     LoginResponse:
       x-implementation-status: existing
+      description: |
+        On a successful non-2FA login (or after completing the 2FA second step),
+        `token`, `expiresIn`, and `account` are present and `twoFactorRequired`
+        is false (or absent).
+
+        When the account has 2FA enabled, the first-step response sets
+        `twoFactorRequired: true` and `twoFactorToken` to a short-lived opaque
+        challenge token. In this case `token`, `expiresIn`, and `account` are
+        null. The client must call `POST /auth/login/2fa` with the challenge
+        token and a TOTP code to obtain the real JWT.
       type: object
-      required: [token, expiresIn, account]
       properties:
         token:
           type: string
+          nullable: true
+          description: |
+            The JWT access token. Present on a complete login (no 2FA, or after
+            the 2FA second step). Null when `twoFactorRequired` is true.
         expiresIn:
           type: integer
           format: int64
-          description: Token lifetime in seconds
+          nullable: true
+          description: Token lifetime in seconds. Null when `twoFactorRequired` is true.
         account:
-          $ref: '#/components/schemas/AccountResponse'
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/AccountResponse'
+          description: Null when `twoFactorRequired` is true.
+        twoFactorRequired:
+          x-implementation-status: planned
+          type: boolean
+          default: false
+          description: |
+            True when the account has 2FA enabled and the login requires a
+            second step. The client should present a TOTP code input and call
+            `POST /auth/login/2fa`. False (or absent) for non-2FA logins.
+        twoFactorToken:
+          x-implementation-status: planned
+          type: string
+          nullable: true
+          description: |
+            An opaque, short-lived (5 min) challenge token. Present only when
+            `twoFactorRequired` is true. Pass this to `POST /auth/login/2fa`
+            together with the TOTP code.
 
     AccountResponse:
       x-implementation-status: existing
@@ -181,6 +422,51 @@ components:
         emailVerified:
           type: boolean
           default: false
+        twoFactorEnabled:
+          x-implementation-status: planned
+          type: boolean
+          default: false
+          description: |
+            True when the account has TOTP two-factor authentication enabled
+            and verified. The UI uses this to show/hide 2FA settings and to
+            know whether to expect a two-step login flow.
+        isAdmin:
+          x-implementation-status: planned
+          type: boolean
+          default: false
+          description: |
+            True when this account is an administrator. Admin status is NOT stored in the
+            database — it is derived at token-issue time by matching the account's email
+            against a deployment-configured allowlist (`auth.admin.emails`). The same rule
+            that adds the `admin` JWT group sets this flag, so the UI can show/hide the
+            admin area without decoding the token. Defaults to false; absent ⇒ not admin.
+        groups:
+          x-implementation-status: planned
+          type: array
+          items:
+            type: string
+          description: |
+            The JWT authorization groups granted to this account (e.g. ["user"] or
+            ["user","admin"]). Mirrors the token's `groups` claim. Surfaced so the UI can
+            reason about capabilities generically; `isAdmin` is the convenience shortcut for
+            the only group that currently gates UI (admin). Additive and backward-compatible.
+
+    RegisterResponse:
+      x-implementation-status: planned
+      description: |
+        Returned by POST /register. The account is created in an unverified state and a
+        6-digit verification code is emailed. `verificationRequired` is always true on this
+        path and exists so the UI can route straight to the code-entry screen without
+        inferring intent from `account.emailVerified`. Login is rejected (403) until the
+        code is confirmed via POST /auth/account/verify-email.
+      type: object
+      required: [account, verificationRequired]
+      properties:
+        account:
+          $ref: '#/components/schemas/AccountResponse'
+        verificationRequired:
+          type: boolean
+          description: Always true — the user must verify their email before logging in.
 
     VerificationResponse:
       type: object
@@ -193,6 +479,292 @@ components:
           type: string
           format: date-time
           description: Codes expire after 15 minutes.
+
+    # ── Two-factor authentication response schemas (ADR 0012) ────────────────
+
+    TwoFactorSetupResponse:
+      x-implementation-status: planned
+      description: |
+        Returned by `POST /account/2fa/setup`. Contains everything the client
+        needs to display a QR code and allow manual key entry.
+      type: object
+      required: [otpauthUri, setupKey]
+      properties:
+        otpauthUri:
+          type: string
+          description: |
+            A full `otpauth://totp/...` URI suitable for encoding into a QR
+            code. Includes the issuer (JobHub), the account email, and the
+            base32 secret.
+        setupKey:
+          type: string
+          description: |
+            The base32-encoded TOTP secret for manual entry into an
+            authenticator app (shown as a fallback when the QR code cannot
+            be scanned).
+
+    TwoFactorVerifySetupResponse:
+      x-implementation-status: planned
+      description: |
+        Returned by `POST /account/2fa/verify-setup` after the first TOTP
+        code is validated. Contains the one-time-visible backup codes.
+      type: object
+      required: [backupCodes]
+      properties:
+        backupCodes:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items:
+            type: string
+          description: |
+            Eight single-use recovery codes. Each is an 8-character
+            alphanumeric string. The user should store these in a safe
+            place. They are shown only once and cannot be retrieved later
+            (only regenerated).
+
+    BackupCodesResponse:
+      x-implementation-status: planned
+      description: |
+        Returned by `POST /account/2fa/backup-codes` after regenerating
+        backup codes.
+      type: object
+      required: [backupCodes]
+      properties:
+        backupCodes:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items:
+            type: string
+          description: |
+            Eight new single-use recovery codes, replacing all prior codes.
+            Same format as the codes from initial setup.
+
+    # ── Internal: batch user email lookup ─────────────────────────────────────
+
+    UsersWithoutTwoFactorResponse:
+      x-implementation-status: planned
+      type: object
+      required: [userIds]
+      properties:
+        userIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: |
+            User IDs of recently registered accounts that do not have 2FA
+            enabled. notification-service uses this to send a one-time
+            SECURITY_RECOMMENDATION notification.
+
+    # ── Internal: admin 2FA gate for crawl/enrichment triggers (ADR 0019) ─────
+
+    TwoFactorStatusResponse:
+      x-implementation-status: planned
+      description: |
+        Whether a given user has TOTP two-factor authentication enabled and verified.
+        Consumed service-to-service by job-service to decide whether an admin must supply a
+        2FA code before firing a crawl/enrichment trigger (see ADR 0019).
+      type: object
+      required: [twoFactorEnabled]
+      properties:
+        twoFactorEnabled:
+          type: boolean
+          description: True when the user has a verified TOTP secret (2FA is active).
+
+    VerifyTwoFactorRequest:
+      x-implementation-status: planned
+      description: |
+        Service-to-service request to verify one user's own two-factor code. Used by
+        job-service to authorize an admin crawl/enrichment trigger against the admin's own
+        2FA (see ADR 0019). The user is named explicitly by `userId` (their auth `user.id`,
+        which is the JWT `sub` the calling service extracted from the admin's token) because
+        this endpoint is authenticated by `X-Service-Key`, not a user JWT.
+
+        Reuses the existing TOTP + backup-code verification (login-2fa path): a valid 6-digit
+        TOTP code verifies without side effect; a valid 8-character backup code is consumed
+        (single use); repeated failures are throttled.
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: The auth user whose 2FA code is being verified (the admin's JWT subject).
+        code:
+          type: string
+          pattern: '^\d{6}$|^[a-zA-Z0-9]{8}$'
+          description: |
+            The user's 6-digit TOTP code or 8-character single-use backup code. Optional:
+            when omitted and the user has 2FA enabled, the response is 422 (a code is
+            required). Ignored when the user has no 2FA enabled (outcome `not_enrolled`).
+
+    VerifyTwoFactorResponse:
+      x-implementation-status: planned
+      description: |
+        Result of a successful service-to-service 2FA verification. Both outcomes mean the
+        caller may proceed (the trigger is authorized); they differ only in why.
+      type: object
+      required: [outcome]
+      properties:
+        outcome:
+          type: string
+          enum: [verified, not_enrolled]
+          description: |
+            - `verified`: the user has 2FA enabled and the supplied `code` was valid.
+            - `not_enrolled`: the user has no 2FA enabled, so no code was needed and the
+              caller should proceed directly.
+
+    UserEmailEntry:
+      x-implementation-status: existing
+      type: object
+      required: [userId, email]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+
+    UserEmailBatchResponse:
+      x-implementation-status: existing
+      type: object
+      required: [emails]
+      properties:
+        emails:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserEmailEntry'
+          description: |
+            Email entries for the requested user IDs. Users that do not exist or are
+            not email-verified are silently omitted — the caller must handle missing
+            entries gracefully.
+
+    # ── Apply profile (answer bank, story #336) ──────────────────────────────
+    # A single per-user bank of the answers ATS forms repeatedly ask, stored once
+    # and copied field-by-field while filling an external application. Separate
+    # surface from the account name/email fields (PATCH /account, story #296);
+    # these answers never appear on AccountResponse. All fields optional: the user
+    # fills the bank incrementally. See ADR 0022.
+
+    ApplyProfileRequest:
+      x-implementation-status: existing
+      description: |
+        Upsert (full replace) of the authenticated user's apply-profile answer bank.
+        Every field is optional; omitted or null fields are cleared. Sent by
+        PUT /auth/account/apply-profile from the Settings "Apply profile" section.
+      type: object
+      properties:
+        workAuthorization:
+          type: string
+          nullable: true
+          maxLength: 200
+          description: Free text, e.g. "US Citizen" or "Requires H-1B sponsorship".
+        requiresSponsorship:
+          type: boolean
+          nullable: true
+          description: Answer to the common "will you now or in future require sponsorship?" question.
+        noticePeriod:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: Free text, e.g. "2 weeks", "Immediate", "1 month".
+        salaryExpectation:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: Free text to allow ranges/currencies/"Negotiable", e.g. "$120k-$140k".
+        currentLocation:
+          type: string
+          nullable: true
+          maxLength: 200
+          description: Free text city/region/country, e.g. "Madrid, Spain".
+        willingToRelocate:
+          type: boolean
+          nullable: true
+        linkedinUrl:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 500
+        githubUrl:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 500
+        portfolioUrl:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 500
+          description: Personal site or portfolio link.
+        languages:
+          type: array
+          nullable: true
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 60
+          description: Spoken/working languages, e.g. ["English (native)", "Spanish (C1)"].
+        roomToGrow:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: |
+            Free-text career-growth answer ("where do you want to grow?" / goals),
+            reused across cover-letter and screening questions.
+
+    ApplyProfileResponse:
+      x-implementation-status: existing
+      description: |
+        The authenticated user's apply-profile answer bank. Always returned by
+        GET /auth/account/apply-profile with a 200 even when nothing has been
+        saved yet (all answer fields null, updatedAt null) so the UI has a stable
+        shape to bind an edit form to.
+      type: object
+      properties:
+        workAuthorization:
+          type: string
+          nullable: true
+        requiresSponsorship:
+          type: boolean
+          nullable: true
+        noticePeriod:
+          type: string
+          nullable: true
+        salaryExpectation:
+          type: string
+          nullable: true
+        currentLocation:
+          type: string
+          nullable: true
+        willingToRelocate:
+          type: boolean
+          nullable: true
+        linkedinUrl:
+          type: string
+          nullable: true
+        githubUrl:
+          type: string
+          nullable: true
+        portfolioUrl:
+          type: string
+          nullable: true
+        languages:
+          type: array
+          nullable: true
+          items:
+            type: string
+        roomToGrow:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the bank was last saved. Null when never saved.
 
     # ── Error ──────────────────────────────────────────────────────────────────
 
@@ -215,7 +787,11 @@ paths:
       tags: [Auth]
       operationId: register
       summary: Register a new user
-      x-implementation-status: existing
+      description: |
+        Creates the account in an **unverified** state and emails a 6-digit verification
+        code (15-minute lifetime). The user must confirm it via
+        `POST /auth/account/verify-email` before they can log in (login returns 403 until then).
+      x-implementation-status: planned
       security: []
       requestBody:
         required: true
@@ -225,11 +801,11 @@ paths:
               $ref: '#/components/schemas/RegisterRequest'
       responses:
         '201':
-          description: Account created
+          description: Account created; verification code emailed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountResponse'
+                $ref: '#/components/schemas/RegisterResponse'
         '400':
           description: Validation error
           content:
@@ -254,7 +830,12 @@ paths:
       tags: [Auth]
       operationId: login
       summary: Authenticate and obtain a JWT
-      x-implementation-status: existing
+      description: |
+        Returns a JWT on success. If the account exists and the password is correct but the
+        email has not been verified, returns **403** with `error: "Email Not Verified"` so the
+        UI can offer a "resend code" action. Bad credentials return 401 (indistinguishable
+        from an unknown email, to avoid account enumeration).
+      x-implementation-status: planned
       security: []
       requestBody:
         required: true
@@ -271,6 +852,222 @@ paths:
                 $ref: '#/components/schemas/LoginResponse'
         '401':
           description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Email address not verified — verification required before login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /login/2fa:
+    post:
+      tags: [Auth]
+      operationId: loginTwoFactor
+      summary: Complete a two-factor login with a TOTP code
+      description: |
+        Second step of the 2FA login flow. Accepts the short-lived challenge
+        token from `POST /auth/login` (returned when `twoFactorRequired` was
+        true) together with a 6-digit TOTP code or an 8-character backup code.
+        On success, returns the full `LoginResponse` with the JWT and account.
+
+        The challenge token is single-use and expires after 5 minutes. A wrong
+        TOTP code does not consume the challenge token, but repeated failures
+        are rate-limited (429).
+      x-implementation-status: planned
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoFactorLoginRequest'
+      responses:
+        '200':
+          description: Login complete, JWT and account profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: |
+            Challenge token invalid, expired, or already consumed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: TOTP code incorrect or backup code already used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many failed 2FA attempts, try again later
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── OAuth social login (ADR 0027) ────────────────────────────────────────────
+
+  /oauth/providers:
+    get:
+      tags: [OAuth]
+      operationId: listOAuthProviders
+      summary: List the social-login providers this deployment can offer
+      description: |
+        Reports, per provider, whether this deployment holds OAuth credentials for it, so
+        the login screen can show only the buttons that will actually work. A provider with
+        `available: false` has no client id and/or no client secret configured here, and
+        `GET /oauth/{provider}/start` answers 404 for it.
+
+        Deliberately UNAUTHENTICATED: it gates the login screen, so it is called before any
+        token exists. It returns configuration state only (booleans), never client ids,
+        secrets, redirect URIs, or any user data, and it performs no outbound call to the
+        provider (an available provider can still be down; that surfaces as 502 on the
+        callback). See ADR 0028.
+      x-implementation-status: planned
+      security: []
+      responses:
+        '200':
+          description: Availability of every provider auth-service knows about
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthProvidersResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /oauth/{provider}/start:
+    get:
+      tags: [OAuth]
+      operationId: startOAuthAuthorization
+      summary: Begin a social-login authorization-code flow
+      description: |
+        Builds the provider authorization URL for the named provider and returns it so the
+        UI can redirect the browser to the provider's consent screen. Generates an opaque
+        `state` for CSRF protection and binds it (HttpOnly, SameSite=Lax cookie) so it can
+        be validated when the UI relays the callback. `google` covers Gmail sign-in.
+      x-implementation-status: planned
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+          description: The identity provider. `google` is used for Gmail; `github` for GitHub.
+      responses:
+        '200':
+          description: The provider authorization URL to redirect the browser to
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthAuthorizationResponse'
+        '404':
+          description: Unknown or unconfigured provider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /oauth/{provider}/callback:
+    post:
+      tags: [OAuth]
+      operationId: completeOAuthLogin
+      summary: Complete a social login and obtain a JWT
+      description: |
+        Relayed by the UI with the `code` and `state` the provider returned. auth-service
+        validates `state`, exchanges the `code` for a provider token server-side (outbound
+        HTTP), reads the provider userinfo, then creates-or-links the local account and
+        returns the same `LoginResponse` as `POST /login`.
+
+        Account-linking rule (see ADR 0027): if a stored identity already exists for this
+        provider subject, that user logs in. Otherwise, when the provider reports a
+        provider-VERIFIED email that matches an existing account, the identity is linked to
+        that account (and the account is marked email-verified). When no account matches, a
+        new password-less account is provisioned just-in-time. When the provider email is
+        NOT provider-verified and it collides with an existing account, auto-linking is
+        refused (401) to prevent account takeover, and the user is asked to sign in with
+        their existing method and link from settings.
+
+        If the resolved account has app-level TOTP two-factor enabled, this returns the same
+        first-step challenge as password login (`twoFactorRequired: true` + `twoFactorToken`);
+        the UI then completes it via `POST /login/2fa`.
+      x-implementation-status: planned
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+          description: The identity provider that issued the authorization code.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthCallbackRequest'
+      responses:
+        '200':
+          description: |
+            Login complete (JWT + account), or a 2FA challenge when the resolved account has
+            TOTP enabled (same shape as `POST /login`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Invalid or expired `state`, or a malformed request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: |
+            Provider authorization failed, or the provider email is not provider-verified and
+            collides with an existing account (auto-linking refused).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unknown or unconfigured provider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: The identity provider could not be reached or returned an unexpected response
           content:
             application/json:
               schema:
@@ -381,6 +1178,10 @@ paths:
       description: |
         Requires the current password before accepting a new one.
         Supersedes the insecure `password` field on `PATCH /auth/account`.
+        When two-factor authentication is enabled on the account, the
+        `totpCode` field in the request body is also required (6-digit TOTP
+        code or 8-character backup code). Returns 401 if the TOTP code is
+        missing or invalid when 2FA is enabled.
       requestBody:
         required: true
         content:
@@ -409,8 +1210,13 @@ paths:
     post:
       tags: [Account]
       operationId: verifyEmail
-      summary: Verify email address
-      description: Marks `emailVerified = true` on the account. The token is delivered by the registration email.
+      summary: Verify email address with the 6-digit code
+      description: |
+        Confirms account ownership at registration. Submits `{ email, code }`; on success
+        marks `emailVerified = true`, consumes the code (single use), and returns the account.
+        Public (the user is not yet logged in). A wrong or expired code returns 400 with
+        `error: "Invalid Verification"`; repeated wrong attempts are throttled with 429.
+      x-implementation-status: planned
       security: []
       requestBody:
         required: true
@@ -419,10 +1225,20 @@ paths:
             schema:
               $ref: '#/components/schemas/VerifyEmailRequest'
       responses:
-        '204':
-          description: Email verified
+        '200':
+          description: Email verified; returns the now-verified account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
         '400':
-          description: Token invalid or expired
+          description: Code invalid, expired, already used, or malformed request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many failed verification attempts — try again later
           content:
             application/json:
               schema:
@@ -438,10 +1254,12 @@ paths:
     post:
       tags: [Account]
       operationId: resendVerification
-      summary: Resend the email verification message
+      summary: Resend the email verification code
       description: |
-        Sends a new verification email if the address is registered and unverified.
-        Silently no-ops if the email is already verified or not found, to avoid email enumeration.
+        Issues a fresh 6-digit verification code (invalidating prior unconsumed ones) and
+        emails it, if the address is registered and unverified. Silently no-ops if the email
+        is already verified or not found, to avoid email enumeration. Throttled per address.
+      x-implementation-status: planned
       security: []
       requestBody:
         required: true
@@ -460,6 +1278,246 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '429':
           description: Too many resend requests — try again later
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Apply profile (answer bank, story #336, ADR 0022) ───────────────────────
+
+  /account/apply-profile:
+    get:
+      tags: [Account]
+      operationId: getApplyProfile
+      summary: Get the authenticated user's apply-profile answer bank
+      x-implementation-status: existing
+      description: |
+        Returns the single per-user answer bank used to speed up external ATS forms.
+        Always 200 with a full object even when nothing has been saved yet (all answer
+        fields null, `updatedAt` null), so the UI can bind an edit form to a stable shape.
+        Distinct from the account name/email fields on `GET /auth/account`.
+      responses:
+        '200':
+          description: The user's apply profile (fields null when unset)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyProfileResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [Account]
+      operationId: saveApplyProfile
+      summary: Save (upsert, full replace) the apply-profile answer bank
+      x-implementation-status: existing
+      description: |
+        Creates the answer bank on first save and replaces it wholesale on subsequent
+        saves (PUT semantics: omitted or null fields are cleared). Every field is optional.
+        Kept separate from `PATCH /auth/account` (partial name/email update, story #296) to
+        avoid colliding with that surface. Returns the saved profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyProfileRequest'
+      responses:
+        '200':
+          description: Saved apply profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyProfileResponse'
+        '400':
+          description: Validation error (a field exceeds its max length or the list is too long)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Two-factor authentication (ADR 0012) ─────────────────────────────────────
+
+  /account/2fa/setup:
+    post:
+      tags: [TwoFactor]
+      operationId: setupTwoFactor
+      summary: Begin TOTP two-factor authentication setup
+      description: |
+        Generates a new TOTP secret for the authenticated user and returns an
+        `otpauth://` URI (for QR code display) plus the base32 setup key for
+        manual entry. The secret is stored server-side in an unverified state
+        until confirmed by `POST /account/2fa/verify-setup`.
+
+        Returns 409 if 2FA is already enabled on the account.
+      x-implementation-status: planned
+      responses:
+        '200':
+          description: TOTP secret generated; display the QR code to the user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorSetupResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '409':
+          description: Two-factor authentication is already enabled on this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /account/2fa/verify-setup:
+    post:
+      tags: [TwoFactor]
+      operationId: verifyTwoFactorSetup
+      summary: Confirm 2FA setup with the first TOTP code
+      description: |
+        Validates the 6-digit TOTP code generated by the user's authenticator
+        app against the unverified secret created by `POST /account/2fa/setup`.
+        On success, marks the secret as verified, sets `twoFactorEnabled = true`
+        on the account, generates 8 single-use backup codes, and returns them.
+
+        The backup codes are shown only once. The user must store them securely.
+
+        Returns 400 if no unverified secret exists (setup was not initiated) or
+        if the TOTP code is incorrect.
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyTwoFactorSetupRequest'
+      responses:
+        '200':
+          description: 2FA enabled; backup codes returned (one-time display)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorVerifySetupResponse'
+        '400':
+          description: |
+            TOTP code incorrect, or no pending setup exists (call
+            `POST /account/2fa/setup` first).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '409':
+          description: Two-factor authentication is already enabled on this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /account/2fa/disable:
+    post:
+      tags: [TwoFactor]
+      operationId: disableTwoFactor
+      summary: Disable two-factor authentication
+      description: |
+        Disables TOTP 2FA on the authenticated user's account. Requires a
+        valid TOTP code or backup code to confirm the caller controls the
+        authenticator device. On success, deletes the TOTP secret and all
+        remaining backup codes, and sets `twoFactorEnabled = false`.
+
+        Returns 400 if 2FA is not currently enabled.
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisableTwoFactorRequest'
+      responses:
+        '204':
+          description: Two-factor authentication disabled
+        '400':
+          description: 2FA is not enabled, or no valid secret exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: TOTP code incorrect, or Bearer token missing/invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /account/2fa/backup-codes:
+    post:
+      tags: [TwoFactor]
+      operationId: regenerateBackupCodes
+      summary: Regenerate backup recovery codes
+      description: |
+        Generates a fresh set of 8 single-use backup codes, invalidating all
+        prior codes. Requires a valid TOTP code (not a backup code) to confirm
+        the caller controls the authenticator device.
+
+        Returns 400 if 2FA is not currently enabled.
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegenerateBackupCodesRequest'
+      responses:
+        '200':
+          description: New backup codes generated (one-time display)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupCodesResponse'
+        '400':
+          description: 2FA is not enabled on this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: TOTP code incorrect, or Bearer token missing/invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Unexpected server error
           content:
@@ -509,7 +1567,7 @@ paths:
       summary: Validate and consume a verification code (service-to-service)
       description: |
         Internal endpoint used by other JobHub services to validate and atomically consume
-        a verification code before performing a destructive action they own — for example
+        a verification code before performing an action they own, for example
         application-service deleting all of a user's applications.
         The user is identified by the Bearer token; the code must belong to that user,
         match the named `action`, and be unused and unexpired. The code is consumed (single use).
@@ -530,6 +1588,251 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Internal (service-to-service) ──────────────────────────────────────────
+
+  /internal/users/emails:
+    get:
+      tags: [Internal]
+      operationId: getUserEmails
+      summary: Batch-fetch user email addresses by user IDs (service-to-service)
+      x-implementation-status: existing
+      description: |
+        Returns email addresses for the supplied user IDs. Intended for
+        notification-service to resolve recipient addresses for digest emails.
+        Users that do not exist or whose email is not verified are silently
+        omitted from the response — the caller must handle missing entries.
+
+        Protected by `X-Service-Key` (pre-shared API key), not a user JWT.
+        This endpoint is not exposed to the internet or the UI.
+      security:
+        - serviceKeyAuth: []
+      parameters:
+        - name: userIds
+          in: query
+          required: true
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+            minItems: 1
+            maxItems: 500
+          description: |
+            One or more user IDs to look up. Repeated query parameter:
+            `?userIds=uuid1&userIds=uuid2`. Maximum 500 per request.
+      responses:
+        '200':
+          description: Batch email lookup result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEmailBatchResponse'
+        '400':
+          description: No userIds supplied or invalid UUID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid X-Service-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/users/without-2fa:
+    get:
+      tags: [Internal]
+      operationId: getUsersWithoutTwoFactor
+      summary: List recently registered users without 2FA (service-to-service)
+      x-implementation-status: planned
+      description: |
+        Returns user IDs of accounts created within the last `sinceDays` days
+        that do not have two-factor authentication enabled. Intended for
+        notification-service to send a one-time security recommendation.
+
+        Protected by `X-Service-Key` (pre-shared API key), not a user JWT.
+      security:
+        - serviceKeyAuth: []
+      parameters:
+        - name: sinceDays
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 30
+            default: 1
+          description: |
+            Look back this many days from now. Defaults to 1 (last 24 hours).
+      responses:
+        '200':
+          description: List of user IDs without 2FA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersWithoutTwoFactorResponse'
+        '401':
+          description: Missing or invalid X-Service-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/users/{userId}/two-factor:
+    get:
+      tags: [Internal]
+      operationId: getUserTwoFactorStatus
+      summary: Report whether a user has 2FA enabled (service-to-service)
+      x-implementation-status: planned
+      description: |
+        Returns whether the given user has TOTP two-factor authentication enabled and
+        verified. job-service calls this from `GET /jobs/admin/triggers/status` to populate
+        the `twoFactorRequired` signal, so the admin UI knows whether to show a 2FA code
+        input before firing a crawl/enrichment trigger (see ADR 0019).
+
+        Protected by `X-Service-Key` (pre-shared API key), not a user JWT. Not exposed to the
+        internet or the UI. Note: auth-service runs at root-path `/auth`, so the effective URL
+        is `/auth/internal/users/{userId}/two-factor` and a rest-client must bake in `/auth`.
+      security:
+        - serviceKeyAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The user to check (the admin's JWT subject, forwarded by job-service).
+      responses:
+        '200':
+          description: The user's 2FA status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorStatusResponse'
+        '400':
+          description: Malformed userId (not a UUID)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid X-Service-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No user exists with the supplied userId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /internal/two-factor/verify:
+    post:
+      tags: [Internal]
+      operationId: verifyUserTwoFactor
+      summary: Verify a user's own 2FA code (service-to-service)
+      x-implementation-status: planned
+      description: |
+        Verifies one user's two-factor code on behalf of another JobHub service. job-service
+        calls this to authorize an admin crawl/enrichment trigger against the admin's own 2FA
+        (see ADR 0019). Reuses the existing TOTP + backup-code verification logic (the
+        login-2fa path): a valid TOTP code verifies without side effect, a valid backup code
+        is consumed (single use), and repeated failures are throttled.
+
+        Outcomes:
+        - **200** `outcome: not_enrolled`: the user has no 2FA enabled. No code was needed;
+          the caller should proceed directly.
+        - **200** `outcome: verified`: the user has 2FA enabled and the supplied `code` was
+          valid. The caller should proceed.
+        - **422**: the user has 2FA enabled and `code` was missing, invalid, expired, or an
+          already-used backup code. The caller must reject the operation.
+
+        Protected by `X-Service-Key` (pre-shared API key), not a user JWT. `422` is used for a
+        bad code so it never collides with the `401` returned for a bad service key. Note:
+        auth-service runs at root-path `/auth`, so the effective URL is
+        `/auth/internal/two-factor/verify` and a rest-client must bake in `/auth`.
+      security:
+        - serviceKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyTwoFactorRequest'
+      responses:
+        '200':
+          description: |
+            Verification resolved. `outcome` is `verified` (2FA enabled, code valid) or
+            `not_enrolled` (no 2FA); both authorize the caller to proceed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyTwoFactorResponse'
+        '400':
+          description: Malformed body (missing `userId`, or `code` fails the format pattern)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid X-Service-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No user exists with the supplied userId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: |
+            The user has 2FA enabled and the supplied `code` was missing, invalid, expired, or
+            an already-used backup code. job-service maps this to its own 422
+            (`Verification Required`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many failed 2FA verification attempts for this user, try again later
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Unexpected server error
           content:

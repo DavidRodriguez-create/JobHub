@@ -7,6 +7,7 @@ import com.davidcreate.jobhub.job.domain.port.out.SavedFilterRepository;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -16,6 +17,8 @@ import java.util.UUID;
 @ApplicationScoped
 public class SavedFilterPanacheRepository
         implements SavedFilterRepository, PanacheRepositoryBase<SavedFilterEntity, UUID> {
+
+    private static final Logger LOG = Logger.getLogger(SavedFilterPanacheRepository.class);
 
     private final SavedFilterMapper mapper;
 
@@ -51,17 +54,20 @@ public class SavedFilterPanacheRepository
             entity.filters = filter.getFiltersJson();
             entity.updatedAt = now;
             persist(entity);
+            LOG.infof("UPDATE job.saved_filter id=%s userId=%s", entity.id, entity.userId);
             return mapper.toDomain(entity);
         }
         entity = mapper.toEntity(filter);
         if (entity.createdAt == null) entity.createdAt = now;
         entity.updatedAt = now;
         persist(entity);
+        LOG.infof("INSERT job.saved_filter id=%s userId=%s", entity.id, entity.userId);
         return mapper.toDomain(entity);
     }
 
     @Override
     public void removeById(UUID id) {
-        delete("id", id);
+        long deleted = delete("id", id);
+        LOG.infof("DELETE job.saved_filter id=%s -> %d row(s)", id, deleted);
     }
 }
