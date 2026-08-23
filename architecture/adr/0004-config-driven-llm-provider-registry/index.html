@@ -1,0 +1,2079 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-service job-tracking platform — architecture, development & API reference.">
+      
+      
+      
+        <link rel="canonical" href="https://davidrodriguez-create.github.io/JobHub/architecture/adr/0004-config-driven-llm-provider-registry/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>ADR 0004: Config-driven LLM provider registry for crawler enrichment - JobHub</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#adr-0004-config-driven-llm-provider-registry-for-crawler-enrichment" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="JobHub" class="md-header__button md-logo" aria-label="JobHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JobHub
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              ADR 0004: Config-driven LLM provider registry for crawler enrichment
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DavidRodriguez-create/JobHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidRodriguez-create/JobHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../development/local-setup/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../services/crawler/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Services
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../api/auth/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../deployment/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Deployment
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="JobHub" class="md-nav__button md-logo" aria-label="JobHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    JobHub
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DavidRodriguez-create/JobHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidRodriguez-create/JobHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hexagonal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hexagonal (Ports & Adapters)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../clean/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clean (Concentric layers)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/local-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/adding-a-feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding a feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/docs-site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/crawler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    crawler-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/job/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    auth-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    application-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/notification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notification-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    auth-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/job/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    application-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/notification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notification-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-configuration-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Configuration shape
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-config-mapping-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Config mapping interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-adapter-interface-and-implementations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Adapter interface and implementations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-rest-client-creation-programmatic-vs-declarative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. REST client creation -- programmatic vs declarative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-providerchainjobenricher-replaces-fallbackjobenricher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. ProviderChainJobEnricher (replaces FallbackJobEnricher)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-enrichmentproviderfactory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. EnrichmentProviderFactory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-chain-algorithm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Chain algorithm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-openai-contract-in-api-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. OpenAI contract in api-contracts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-compose-approach-ollama-as-opt-in-via-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Compose approach -- Ollama as opt-in via profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-what-to-keep-vs-remove" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. What to keep vs remove
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-backward-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Backward compatibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-test-impact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Test impact
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-considered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives considered
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="adr-0004-config-driven-llm-provider-registry-for-crawler-enrichment">ADR 0004: Config-driven LLM provider registry for crawler enrichment<a class="headerlink" href="#adr-0004-config-driven-llm-provider-registry-for-crawler-enrichment" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Proposed</li>
+<li><strong>Date:</strong> 2026-06-12</li>
+<li><strong>Deciders:</strong> Principal Architect (jobhub-architect); David R H</li>
+<li><strong>Affects:</strong> crawler-service (Hexagonal), api-contracts (gemini.yaml, ollama.yaml), podman-compose.yml, podman-compose.native.yml, deploy/shared/compose/docker-compose.prod.yml</li>
+</ul>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
+<p>The crawler-service enrichment chain is hardcoded to two providers: Gemini (hosted, primary)
+and Ollama (local CPU, fallback). The local Ollama container consumes significant CPU even
+when idle and must always be running because <code>crawler-service</code> declares a hard <code>depends_on:
+ollama</code>. Users who only have a free hosted API key (Gemini) should not need to run the Ollama
+container at all. Additionally, there is no way to add a third provider (DeepSeek, Groq,
+Together, Mistral, or any OpenAI-compatible API) without writing new Java code.</p>
+<p>Issue #51 requests replacing the hardcoded two-provider chain with a <strong>config-driven provider
+registry</strong> so that:</p>
+<ol>
+<li>Any number of LLM providers can be declared in <code>application.properties</code> (indexed list).</li>
+<li>Each provider specifies its API type (gemini, openai, ollama), base URL, model(s), API key,
+   cooldown, and enabled flag.</li>
+<li>Ollama is opt-in (disabled by default) -- the compose container starts only when explicitly
+   requested.</li>
+<li>The system works out of the box with just <code>GEMINI_API_KEY</code> set (backward-compatible).</li>
+<li>If all providers are exhausted, the enrichment call throws so <code>EnrichmentService</code> marks the
+   job as failed (no silent swallowing).</li>
+</ol>
+<p>crawler-service is <strong>Hexagonal</strong>. The domain port <code>JobEnricher</code> is unchanged. All changes are
+within the adapter layer (<code>adapter/out/client/enrichment/</code>). No schema changes are required.</p>
+<p>Three distinct API formats exist today and must be supported as provider types:</p>
+<ul>
+<li><strong>gemini</strong> -- Google Generative Language API: <code>POST /v1beta/models/{model}:generateContent</code>,
+  <code>x-goog-api-key</code> header, Google-specific request/response schema. Has model-family quirks:
+  <code>gemma*</code> models lack <code>systemInstruction</code> and JSON mode.</li>
+<li><strong>ollama</strong> -- Local Ollama: <code>POST /api/chat</code>, its own schema (model, messages, format,
+  stream, options).</li>
+<li><strong>openai</strong> -- OpenAI-compatible (DeepSeek, Groq, Together, Mistral, etc.):
+  <code>POST /v1/chat/completions</code>, <code>Authorization: Bearer &lt;key&gt;</code> header, standard OpenAI
+  chat-completions schema.</li>
+</ul>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>We will replace the hardcoded <code>FallbackJobEnricher</code> / <code>@HostedEnricher</code> / <code>@LocalEnricher</code>
+pattern with a <strong>config-driven provider chain</strong> using Quarkus <code>@ConfigMapping</code> indexed
+properties. The domain port (<code>JobEnricher</code>) is untouched. Everything below lives in the
+adapter layer.</p>
+<h3 id="1-configuration-shape">1. Configuration shape<a class="headerlink" href="#1-configuration-shape" title="Permanent link">&para;</a></h3>
+<p>A new <code>@ConfigMapping(prefix = "crawler.enrichment")</code> interface replaces the scattered
+<code>@ConfigProperty</code> keys for the enrichment provider setup.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a># ── LLM enrichment — provider chain ──────────────────────────────────────
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a># Providers are tried in declaration order (index 0 first). Each provider
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a># declares a type (gemini | openai | ollama) that determines the HTTP
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a># client and request format. A provider is skipped when enabled=false or
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a># when its api-key is blank (except ollama, which needs no key).
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>#
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a># Backward-compatible default: Gemini hosted chain only, Ollama disabled.
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>crawler.enrichment.providers[0].name=gemini
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>crawler.enrichment.providers[0].type=gemini
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>crawler.enrichment.providers[0].base-url=https://generativelanguage.googleapis.com
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>crawler.enrichment.providers[0].api-key=${GEMINI_API_KEY:}
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>crawler.enrichment.providers[0].models=gemini-3.1-flash-lite,gemma-4-31b-it,gemma-4-26b-a4b-it
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>crawler.enrichment.providers[0].cooldown-minutes=30
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>crawler.enrichment.providers[0].read-timeout-ms=90000
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>crawler.enrichment.providers[0].enabled=true
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a># Ollama — opt-in local fallback. Disabled by default so the container
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a># does not need to run. Enable by setting CRAWLER_OLLAMA_ENABLED=true
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a># in .env and starting the ollama compose profile.
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>crawler.enrichment.providers[1].name=ollama
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>crawler.enrichment.providers[1].type=ollama
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>crawler.enrichment.providers[1].base-url=${OLLAMA_BASE_URL:http://localhost:11434}
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>crawler.enrichment.providers[1].api-key=
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>crawler.enrichment.providers[1].models=${CRAWLER_ENRICHMENT_MODEL:llama3.2}
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>crawler.enrichment.providers[1].cooldown-minutes=0
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>crawler.enrichment.providers[1].read-timeout-ms=600000
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>crawler.enrichment.providers[1].enabled=${CRAWLER_OLLAMA_ENABLED:false}
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a># Example: adding DeepSeek (or any OpenAI-compatible provider) — just
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a># append a new indexed entry in .env / application-prod.properties:
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>#
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a># crawler.enrichment.providers[2].name=deepseek
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a># crawler.enrichment.providers[2].type=openai
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a># crawler.enrichment.providers[2].base-url=https://api.deepseek.com
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a># crawler.enrichment.providers[2].api-key=${DEEPSEEK_API_KEY:}
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a># crawler.enrichment.providers[2].models=deepseek-chat
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a># crawler.enrichment.providers[2].cooldown-minutes=30
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a># crawler.enrichment.providers[2].read-timeout-ms=60000
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a># crawler.enrichment.providers[2].enabled=true
+</code></pre></div>
+<p><strong>Property semantics:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Required</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>yes</td>
+<td>--</td>
+<td>Human-readable identifier for logging. Must be unique.</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>yes</td>
+<td>--</td>
+<td>One of <code>gemini</code>, <code>openai</code>, <code>ollama</code>. Selects the HTTP client and request builder.</td>
+</tr>
+<tr>
+<td><code>base-url</code></td>
+<td>yes</td>
+<td>--</td>
+<td>Base URL for the provider's API.</td>
+</tr>
+<tr>
+<td><code>api-key</code></td>
+<td>no</td>
+<td><code>""</code></td>
+<td>API key. Blank means "no key configured". For <code>gemini</code>/<code>openai</code>, a blank key causes the provider to be skipped at startup (logged as WARN). <code>ollama</code> ignores this.</td>
+</tr>
+<tr>
+<td><code>models</code></td>
+<td>yes</td>
+<td>--</td>
+<td>Comma-separated ordered list of model IDs. Each model is tried in order within this provider before moving to the next provider.</td>
+</tr>
+<tr>
+<td><code>cooldown-minutes</code></td>
+<td>no</td>
+<td><code>30</code></td>
+<td>Per-model cooldown after a failure (429, timeout, HTTP error). 0 = no cooldown (retry immediately next call).</td>
+</tr>
+<tr>
+<td><code>read-timeout-ms</code></td>
+<td>no</td>
+<td><code>30000</code></td>
+<td>HTTP read timeout for this provider's REST client.</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td>no</td>
+<td><code>true</code></td>
+<td>Master switch. <code>false</code> = skip entirely.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Existing flat keys that are REMOVED:</strong></p>
+<ul>
+<li><code>crawler.enrichment.hosted.enabled</code></li>
+<li><code>crawler.enrichment.hosted.models</code></li>
+<li><code>crawler.enrichment.hosted.api-key</code></li>
+<li><code>crawler.enrichment.hosted.cooldown-minutes</code></li>
+<li><code>crawler.enrichment.model</code></li>
+<li><code>quarkus.rest-client.gemini.url</code></li>
+<li><code>quarkus.rest-client.gemini.read-timeout</code></li>
+<li><code>quarkus.rest-client.ollama.url</code></li>
+<li><code>quarkus.rest-client.ollama.read-timeout</code></li>
+</ul>
+<p><strong>Existing keys that are KEPT (enrichment scheduler, not provider-specific):</strong></p>
+<ul>
+<li><code>crawler.enrichment.enabled</code></li>
+<li><code>crawler.enrichment.batch-size</code></li>
+<li><code>crawler.enrichment.max-attempts</code></li>
+<li><code>crawler.enrichment.cron</code></li>
+</ul>
+<h3 id="2-config-mapping-interface">2. Config mapping interface<a class="headerlink" href="#2-config-mapping-interface" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>adapter/out/client/enrichment/config/
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  EnrichmentConfig.java          -- @ConfigMapping(prefix = "crawler.enrichment")
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  ProviderConfig.java            -- nested interface: one provider entry
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  ProviderType.java              -- enum: GEMINI, OPENAI, OLLAMA
+</code></pre></div>
+<p><code>EnrichmentConfig</code> is a Quarkus <code>@ConfigMapping</code> interface:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nd">@ConfigMapping</span><span class="p">(</span><span class="n">prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"crawler.enrichment"</span><span class="p">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kd">public</span><span class="w"> </span><span class="kd">interface</span> <span class="nc">EnrichmentConfig</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">List</span><span class="o">&lt;</span><span class="n">ProviderConfig</span><span class="o">&gt;</span><span class="w"> </span><span class="nf">providers</span><span class="p">();</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="kd">public</span><span class="w"> </span><span class="kd">interface</span> <span class="nc">ProviderConfig</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="nf">name</span><span class="p">();</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="n">ProviderType</span><span class="w"> </span><span class="nf">type</span><span class="p">();</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="nf">baseUrl</span><span class="p">();</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nd">@WithDefault</span><span class="p">(</span><span class="s">""</span><span class="p">)</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">apiKey</span><span class="p">();</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="w"> </span><span class="nf">models</span><span class="p">();</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span><span class="nd">@WithDefault</span><span class="p">(</span><span class="s">"30"</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">cooldownMinutes</span><span class="p">();</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span><span class="nd">@WithDefault</span><span class="p">(</span><span class="s">"30000"</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">readTimeoutMs</span><span class="p">();</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">    </span><span class="nd">@WithDefault</span><span class="p">(</span><span class="s">"true"</span><span class="p">)</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="nf">enabled</span><span class="p">();</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="p">}</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="kd">public</span><span class="w"> </span><span class="kd">enum</span><span class="w"> </span><span class="n">ProviderType</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">    </span><span class="n">GEMINI</span><span class="p">,</span><span class="w"> </span><span class="n">OPENAI</span><span class="p">,</span><span class="w"> </span><span class="n">OLLAMA</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="3-adapter-interface-and-implementations">3. Adapter interface and implementations<a class="headerlink" href="#3-adapter-interface-and-implementations" title="Permanent link">&para;</a></h3>
+<p>An internal adapter-layer contract <code>EnrichmentProvider</code> (NOT a domain port -- it is an
+implementation detail of the adapter that implements <code>JobEnricher</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>adapter/out/client/enrichment/
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  provider/
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    EnrichmentProvider.java            -- interface
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    GeminiEnrichmentProvider.java      -- type=gemini
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    OpenAiEnrichmentProvider.java      -- type=openai
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    OllamaEnrichmentProvider.java      -- type=ollama
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    EnrichmentProviderFactory.java     -- creates providers from ProviderConfig
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  config/
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    EnrichmentConfig.java
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    ProviderConfig.java
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    ProviderType.java
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>  ProviderChainJobEnricher.java        -- replaces FallbackJobEnricher
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>  # KEPT (shared utilities):
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>  GeminiClient.java                    -- @RegisterRestClient (still used by GeminiEnrichmentProvider)
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>  OllamaClient.java                   -- @RegisterRestClient (still used by OllamaEnrichmentProvider)
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>  EnrichmentParser.java                -- (already in adapter/out/client/support/)
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>  EnrichmentPrompt.java                -- (already in adapter/out/client/support/)
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>  # DELETED:
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>  FallbackJobEnricher.java
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>  GeminiJobEnricher.java
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>  OllamaJobEnricher.java
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>  HostedEnricher.java
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>  LocalEnricher.java
+</code></pre></div>
+<p><strong>EnrichmentProvider interface:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kd">public</span><span class="w"> </span><span class="kd">interface</span> <span class="nc">EnrichmentProvider</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="cm">/** Human-readable name for logging. */</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="nf">name</span><span class="p">();</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="cm">/**</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="cm">     * Try to enrich using this provider. Returns the enrichment on success.</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="cm">     * Throws on any failure (HTTP error, timeout, unparseable response, all</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="cm">     * models exhausted within this provider). The chain catches and moves on.</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="cm">     */</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="n">JobEnrichment</span><span class="w"> </span><span class="nf">enrich</span><span class="p">(</span><span class="n">String</span><span class="w"> </span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">description</span><span class="p">,</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">city</span><span class="p">,</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">country</span><span class="p">);</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>GeminiEnrichmentProvider</strong> -- absorbs the logic from today's <code>GeminiJobEnricher</code>:
+- Constructed with a <code>ProviderConfig</code>, <code>GeminiClient</code> (programmatically created -- see
+  below), <code>ObjectMapper</code>, <code>CurrencyConverter</code>.
+- Iterates <code>config.models()</code> in order, with per-model cooldown (same <code>ConcurrentHashMap</code>
+  pattern).
+- Handles the <code>gemma*</code> model-family quirk (no systemInstruction, no JSON mode).
+- Extracts JSON from prose using the existing <code>extractJsonObject()</code> logic (moved here or
+  kept as a shared static utility).
+- Parses via <code>EnrichmentParser.parse()</code>.</p>
+<p><strong>OpenAiEnrichmentProvider</strong> -- new:
+- Constructed with a <code>ProviderConfig</code> and a programmatic REST client targeting the
+  provider's <code>base-url</code>.
+- Sends <code>POST /v1/chat/completions</code> with <code>Authorization: Bearer &lt;api-key&gt;</code>,
+  <code>model</code>, <code>messages</code> (system + user), <code>temperature: 0</code>, <code>response_format: {"type":"json_object"}</code>.
+- The request/response models for the OpenAI chat-completions API are added to
+  <code>api-contracts/src/main/resources/openapi/openai.yaml</code> (models only,
+  <code>generateApis=false</code> -- same pattern as <code>ollama.yaml</code>). The <code>@RegisterRestClient</code>
+  interface lives in crawler-service.
+- Iterates <code>config.models()</code> with per-model cooldown.
+- Parses via <code>EnrichmentParser.parse()</code>.</p>
+<p><strong>OllamaEnrichmentProvider</strong> -- absorbs the logic from today's <code>OllamaJobEnricher</code>:
+- Constructed with a <code>ProviderConfig</code>, <code>OllamaClient</code> (programmatically created),
+  <code>ObjectMapper</code>, <code>CurrencyConverter</code>.
+- Single-model (takes the first entry from <code>config.models()</code>).
+- No cooldown needed (local, no rate limits).
+- Parses via <code>EnrichmentParser.parse()</code>.</p>
+<h3 id="4-rest-client-creation-programmatic-vs-declarative">4. REST client creation -- programmatic vs declarative<a class="headerlink" href="#4-rest-client-creation-programmatic-vs-declarative" title="Permanent link">&para;</a></h3>
+<p>The current design uses <code>@RegisterRestClient(configKey = "gemini")</code> and
+<code>@RegisterRestClient(configKey = "ollama")</code>, which bind to a single base URL each at
+startup. With a provider registry, we may have <strong>multiple providers of the same type</strong> at
+different base URLs (e.g. two different OpenAI-compatible endpoints), and the base URL is
+now per-provider-config, not a global rest-client key.</p>
+<p><strong>Approach:</strong> use <strong>programmatic REST client creation</strong> via Quarkus's <code>RestClientBuilder</code>
+(from MicroProfile Rest Client) in <code>EnrichmentProviderFactory</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">GeminiClient</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RestClientBuilder</span><span class="p">.</span><span class="na">newBuilder</span><span class="p">()</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="p">.</span><span class="na">baseUri</span><span class="p">(</span><span class="n">URI</span><span class="p">.</span><span class="na">create</span><span class="p">(</span><span class="n">providerConfig</span><span class="p">.</span><span class="na">baseUrl</span><span class="p">()))</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="p">.</span><span class="na">readTimeout</span><span class="p">(</span><span class="n">providerConfig</span><span class="p">.</span><span class="na">readTimeoutMs</span><span class="p">(),</span><span class="w"> </span><span class="n">TimeUnit</span><span class="p">.</span><span class="na">MILLISECONDS</span><span class="p">)</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="p">.</span><span class="na">build</span><span class="p">(</span><span class="n">GeminiClient</span><span class="p">.</span><span class="na">class</span><span class="p">);</span>
+</code></pre></div>
+<p>This means the <code>@RegisterRestClient</code> annotation on <code>GeminiClient</code> and <code>OllamaClient</code> is
+<strong>removed</strong> -- they become plain JAX-RS interfaces (still <code>@Path</code>, <code>@POST</code>, etc.) without
+the CDI registration. The factory builds them programmatically per provider.</p>
+<p>For the new <code>OpenAiClient</code>, it is declared as a plain JAX-RS interface in crawler-service
+(same pattern) and also built programmatically.</p>
+<p>The <code>quarkus.rest-client.gemini.*</code> and <code>quarkus.rest-client.ollama.*</code> config keys are
+removed since the base URL and timeout are now per-provider in the indexed config.</p>
+<p><strong>Note:</strong> the <code>quarkus.index-dependency.api-contracts.*</code> keys must remain -- they ensure
+the api-contracts JAR is Jandex-indexed so inherited JAX-RS annotations are visible. But
+with programmatic client creation, <code>OllamaClient</code> no longer needs to extend the generated
+<code>ChatApi</code> (it can declare its own <code>@POST @Path("/api/chat")</code> method directly). Whether to
+keep the inheritance or inline the method is a developer decision during implementation;
+either works. If inheritance is kept, the index dependency key stays.</p>
+<h3 id="5-providerchainjobenricher-replaces-fallbackjobenricher">5. ProviderChainJobEnricher (replaces FallbackJobEnricher)<a class="headerlink" href="#5-providerchainjobenricher-replaces-fallbackjobenricher" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nd">@ApplicationScoped</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kd">public</span><span class="w"> </span><span class="kd">class</span> <span class="nc">ProviderChainJobEnricher</span><span class="w"> </span><span class="kd">implements</span><span class="w"> </span><span class="n">JobEnricher</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="kd">private</span><span class="w"> </span><span class="kd">final</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">EnrichmentProvider</span><span class="o">&gt;</span><span class="w"> </span><span class="n">providers</span><span class="p">;</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="n">ProviderChainJobEnricher</span><span class="p">(</span><span class="n">EnrichmentConfig</span><span class="w"> </span><span class="n">config</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">                             </span><span class="n">EnrichmentProviderFactory</span><span class="w"> </span><span class="n">factory</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">        </span><span class="k">this</span><span class="p">.</span><span class="na">providers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">factory</span><span class="p">.</span><span class="na">createProviders</span><span class="p">(</span><span class="n">config</span><span class="p">.</span><span class="na">providers</span><span class="p">());</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">providers</span><span class="p">.</span><span class="na">isEmpty</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">            </span><span class="n">LOG</span><span class="p">.</span><span class="na">warn</span><span class="p">(</span><span class="s">"No enrichment providers are enabled -- "</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">                   </span><span class="o">+</span><span class="w"> </span><span class="s">"enrichment calls will fail until a provider is configured."</span><span class="p">);</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="nd">@Override</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">JobEnrichment</span><span class="w"> </span><span class="nf">enrich</span><span class="p">(</span><span class="n">String</span><span class="w"> </span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">description</span><span class="p">,</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">                                </span><span class="n">String</span><span class="w"> </span><span class="n">city</span><span class="p">,</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">country</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">EnrichmentProvider</span><span class="w"> </span><span class="n">provider</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">providers</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">            </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">provider</span><span class="p">.</span><span class="na">enrich</span><span class="p">(</span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="n">description</span><span class="p">,</span><span class="w"> </span><span class="n">city</span><span class="p">,</span><span class="w"> </span><span class="n">country</span><span class="p">);</span>
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="n">Exception</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">                </span><span class="n">LOG</span><span class="p">.</span><span class="na">debugf</span><span class="p">(</span><span class="s">"Provider '%s' failed (%s) -- trying next."</span><span class="p">,</span>
+<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="w">                           </span><span class="n">provider</span><span class="p">.</span><span class="na">name</span><span class="p">(),</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="na">getMessage</span><span class="p">());</span>
+<a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="w">            </span><span class="p">}</span>
+<a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">IllegalStateException</span><span class="p">(</span>
+<a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="w">            </span><span class="s">"All enrichment providers exhausted -- no usable response"</span><span class="p">);</span>
+<a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="6-enrichmentproviderfactory">6. EnrichmentProviderFactory<a class="headerlink" href="#6-enrichmentproviderfactory" title="Permanent link">&para;</a></h3>
+<p>An <code>@ApplicationScoped</code> bean that reads the provider list and creates the right
+<code>EnrichmentProvider</code> implementation for each enabled entry:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nd">@ApplicationScoped</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kd">public</span><span class="w"> </span><span class="kd">class</span> <span class="nc">EnrichmentProviderFactory</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="kd">private</span><span class="w"> </span><span class="kd">final</span><span class="w"> </span><span class="n">ObjectMapper</span><span class="w"> </span><span class="n">objectMapper</span><span class="p">;</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="kd">private</span><span class="w"> </span><span class="kd">final</span><span class="w"> </span><span class="n">CurrencyConverter</span><span class="w"> </span><span class="n">converter</span><span class="p">;</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="c1">// constructor-injected</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">EnrichmentProvider</span><span class="o">&gt;</span><span class="w"> </span><span class="nf">createProviders</span><span class="p">(</span><span class="n">List</span><span class="o">&lt;</span><span class="n">ProviderConfig</span><span class="o">&gt;</span><span class="w"> </span><span class="n">configs</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">configs</span><span class="p">.</span><span class="na">stream</span><span class="p">()</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">            </span><span class="p">.</span><span class="na">filter</span><span class="p">(</span><span class="n">ProviderConfig</span><span class="p">::</span><span class="n">enabled</span><span class="p">)</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">            </span><span class="p">.</span><span class="na">filter</span><span class="p">(</span><span class="k">this</span><span class="p">::</span><span class="n">hasRequiredKey</span><span class="p">)</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">            </span><span class="p">.</span><span class="na">map</span><span class="p">(</span><span class="k">this</span><span class="p">::</span><span class="n">createProvider</span><span class="p">)</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">            </span><span class="p">.</span><span class="na">toList</span><span class="p">();</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="w">    </span><span class="kd">private</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="nf">hasRequiredKey</span><span class="p">(</span><span class="n">ProviderConfig</span><span class="w"> </span><span class="n">config</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">config</span><span class="p">.</span><span class="na">type</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ProviderType</span><span class="p">.</span><span class="na">OLLAMA</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="w">        </span><span class="kt">boolean</span><span class="w"> </span><span class="n">hasKey</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">config</span><span class="p">.</span><span class="na">apiKey</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">config</span><span class="p">.</span><span class="na">apiKey</span><span class="p">().</span><span class="na">isBlank</span><span class="p">();</span>
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">hasKey</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="w">            </span><span class="n">LOG</span><span class="p">.</span><span class="na">warnf</span><span class="p">(</span><span class="s">"Provider '%s' is enabled but has no API key -- skipping."</span><span class="p">,</span>
+<a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="w">                      </span><span class="n">config</span><span class="p">.</span><span class="na">name</span><span class="p">());</span>
+<a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">hasKey</span><span class="p">;</span>
+<a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-7-26" name="__codelineno-7-26" href="#__codelineno-7-26"></a>
+<a id="__codelineno-7-27" name="__codelineno-7-27" href="#__codelineno-7-27"></a><span class="w">    </span><span class="kd">private</span><span class="w"> </span><span class="n">EnrichmentProvider</span><span class="w"> </span><span class="nf">createProvider</span><span class="p">(</span><span class="n">ProviderConfig</span><span class="w"> </span><span class="n">config</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-28" name="__codelineno-7-28" href="#__codelineno-7-28"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">config</span><span class="p">.</span><span class="na">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-29" name="__codelineno-7-29" href="#__codelineno-7-29"></a><span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="n">GEMINI</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-30" name="__codelineno-7-30" href="#__codelineno-7-30"></a><span class="w">                </span><span class="n">GeminiClient</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buildClient</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">GeminiClient</span><span class="p">.</span><span class="na">class</span><span class="p">);</span>
+<a id="__codelineno-7-31" name="__codelineno-7-31" href="#__codelineno-7-31"></a><span class="w">                </span><span class="kd">yield</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">GeminiEnrichmentProvider</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">client</span><span class="p">,</span>
+<a id="__codelineno-7-32" name="__codelineno-7-32" href="#__codelineno-7-32"></a><span class="w">                                                   </span><span class="n">objectMapper</span><span class="p">,</span><span class="w"> </span><span class="n">converter</span><span class="p">);</span>
+<a id="__codelineno-7-33" name="__codelineno-7-33" href="#__codelineno-7-33"></a><span class="w">            </span><span class="p">}</span>
+<a id="__codelineno-7-34" name="__codelineno-7-34" href="#__codelineno-7-34"></a><span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="n">OPENAI</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-35" name="__codelineno-7-35" href="#__codelineno-7-35"></a><span class="w">                </span><span class="n">OpenAiClient</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buildClient</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">OpenAiClient</span><span class="p">.</span><span class="na">class</span><span class="p">);</span>
+<a id="__codelineno-7-36" name="__codelineno-7-36" href="#__codelineno-7-36"></a><span class="w">                </span><span class="kd">yield</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">OpenAiEnrichmentProvider</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">client</span><span class="p">,</span>
+<a id="__codelineno-7-37" name="__codelineno-7-37" href="#__codelineno-7-37"></a><span class="w">                                                    </span><span class="n">objectMapper</span><span class="p">,</span><span class="w"> </span><span class="n">converter</span><span class="p">);</span>
+<a id="__codelineno-7-38" name="__codelineno-7-38" href="#__codelineno-7-38"></a><span class="w">            </span><span class="p">}</span>
+<a id="__codelineno-7-39" name="__codelineno-7-39" href="#__codelineno-7-39"></a><span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="n">OLLAMA</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-40" name="__codelineno-7-40" href="#__codelineno-7-40"></a><span class="w">                </span><span class="n">OllamaClient</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buildClient</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">OllamaClient</span><span class="p">.</span><span class="na">class</span><span class="p">);</span>
+<a id="__codelineno-7-41" name="__codelineno-7-41" href="#__codelineno-7-41"></a><span class="w">                </span><span class="kd">yield</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">OllamaEnrichmentProvider</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">client</span><span class="p">,</span>
+<a id="__codelineno-7-42" name="__codelineno-7-42" href="#__codelineno-7-42"></a><span class="w">                                                    </span><span class="n">objectMapper</span><span class="p">,</span><span class="w"> </span><span class="n">converter</span><span class="p">);</span>
+<a id="__codelineno-7-43" name="__codelineno-7-43" href="#__codelineno-7-43"></a><span class="w">            </span><span class="p">}</span>
+<a id="__codelineno-7-44" name="__codelineno-7-44" href="#__codelineno-7-44"></a><span class="w">        </span><span class="p">};</span>
+<a id="__codelineno-7-45" name="__codelineno-7-45" href="#__codelineno-7-45"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-7-46" name="__codelineno-7-46" href="#__codelineno-7-46"></a>
+<a id="__codelineno-7-47" name="__codelineno-7-47" href="#__codelineno-7-47"></a><span class="w">    </span><span class="kd">private</span><span class="w"> </span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="nf">buildClient</span><span class="p">(</span><span class="n">ProviderConfig</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">Class</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">iface</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-48" name="__codelineno-7-48" href="#__codelineno-7-48"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">RestClientBuilder</span><span class="p">.</span><span class="na">newBuilder</span><span class="p">()</span>
+<a id="__codelineno-7-49" name="__codelineno-7-49" href="#__codelineno-7-49"></a><span class="w">            </span><span class="p">.</span><span class="na">baseUri</span><span class="p">(</span><span class="n">URI</span><span class="p">.</span><span class="na">create</span><span class="p">(</span><span class="n">config</span><span class="p">.</span><span class="na">baseUrl</span><span class="p">()))</span>
+<a id="__codelineno-7-50" name="__codelineno-7-50" href="#__codelineno-7-50"></a><span class="w">            </span><span class="p">.</span><span class="na">readTimeout</span><span class="p">(</span><span class="n">config</span><span class="p">.</span><span class="na">readTimeoutMs</span><span class="p">(),</span><span class="w"> </span><span class="n">TimeUnit</span><span class="p">.</span><span class="na">MILLISECONDS</span><span class="p">)</span>
+<a id="__codelineno-7-51" name="__codelineno-7-51" href="#__codelineno-7-51"></a><span class="w">            </span><span class="p">.</span><span class="na">build</span><span class="p">(</span><span class="n">iface</span><span class="p">);</span>
+<a id="__codelineno-7-52" name="__codelineno-7-52" href="#__codelineno-7-52"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-7-53" name="__codelineno-7-53" href="#__codelineno-7-53"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="7-chain-algorithm">7. Chain algorithm<a class="headerlink" href="#7-chain-algorithm" title="Permanent link">&para;</a></h3>
+<ol>
+<li><code>ProviderChainJobEnricher.enrich()</code> iterates <code>providers</code> (already filtered to enabled +
+   keyed) in declaration order (index 0, 1, 2, ...).</li>
+<li>For each provider, calls <code>provider.enrich(title, desc, city, country)</code>.</li>
+<li>Inside each provider (Gemini, OpenAI), the provider iterates its own <code>models</code> list:</li>
+<li>Skip models in cooldown (<code>ConcurrentHashMap&lt;String, Long&gt; modelRetryAt</code>).</li>
+<li>Call the API. On HTTP/timeout/parse failure: enter cooldown for that model, try next.</li>
+<li>On success: clear cooldown, parse via <code>EnrichmentParser</code>, return.</li>
+<li>If all models exhausted: throw <code>IllegalStateException</code>.</li>
+<li>Back in the chain: catch the exception, log at DEBUG, try the next provider.</li>
+<li>If <strong>all</strong> providers throw: <code>ProviderChainJobEnricher</code> throws
+   <code>IllegalStateException("All enrichment providers exhausted")</code>.</li>
+<li><code>EnrichmentService</code> catches this and calls <code>jobPostRepository.markEnrichmentFailed()</code> --
+   this is the existing behavior, unchanged.</li>
+</ol>
+<p><strong>Per-model cooldown</strong> is owned by each provider instance (not shared across providers).
+The <code>ConcurrentHashMap&lt;String, Long&gt;</code> pattern from <code>GeminiJobEnricher</code> is carried forward
+identically. Cooldown minutes come from <code>config.cooldownMinutes()</code>. A value of 0 means
+"no cooldown" (always retry immediately).</p>
+<h3 id="8-openai-contract-in-api-contracts">8. OpenAI contract in api-contracts<a class="headerlink" href="#8-openai-contract-in-api-contracts" title="Permanent link">&para;</a></h3>
+<p>A new <code>api-contracts/src/main/resources/openapi/openai.yaml</code> spec defines <strong>models only</strong>
+for the OpenAI chat-completions API:</p>
+<ul>
+<li><code>ChatCompletionRequest</code> (model, messages[], temperature, response_format)</li>
+<li><code>ChatCompletionMessage</code> (role, content)</li>
+<li><code>ChatCompletionResponse</code> (id, choices[], usage)</li>
+<li><code>ChatCompletionChoice</code> (index, message, finish_reason)</li>
+<li><code>ChatCompletionUsage</code> (prompt_tokens, completion_tokens, total_tokens)</li>
+</ul>
+<p>Generated into <code>com.davidcreate.jobhub.openai.contract.model</code> with
+<code>&lt;generateApis&gt;false&lt;/generateApis&gt;</code> -- same pattern as <code>ollama.yaml</code> and <code>gemini.yaml</code>.</p>
+<p>The <code>OpenAiClient</code> <code>@Path("/v1/chat")</code> interface lives in crawler-service at
+<code>adapter/out/client/enrichment/OpenAiClient.java</code> (same location as <code>GeminiClient</code>). It
+declares a single method:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nd">@Path</span><span class="p">(</span><span class="s">"/v1/chat"</span><span class="p">)</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nd">@Produces</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="na">APPLICATION_JSON</span><span class="p">)</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nd">@Consumes</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="na">APPLICATION_JSON</span><span class="p">)</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="kd">public</span><span class="w"> </span><span class="kd">interface</span> <span class="nc">OpenAiClient</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="nd">@POST</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span><span class="nd">@Path</span><span class="p">(</span><span class="s">"/completions"</span><span class="p">)</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="n">ChatCompletionResponse</span><span class="w"> </span><span class="nf">complete</span><span class="p">(</span><span class="nd">@HeaderParam</span><span class="p">(</span><span class="s">"Authorization"</span><span class="p">)</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">bearerToken</span><span class="p">,</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">                                    </span><span class="n">ChatCompletionRequest</span><span class="w"> </span><span class="n">request</span><span class="p">);</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="p">}</span>
+</code></pre></div>
+<p>The provider prepends <code>"Bearer "</code> to the API key when calling.</p>
+<h3 id="9-compose-approach-ollama-as-opt-in-via-profiles">9. Compose approach -- Ollama as opt-in via profiles<a class="headerlink" href="#9-compose-approach-ollama-as-opt-in-via-profiles" title="Permanent link">&para;</a></h3>
+<p>Use <strong>Docker Compose profiles</strong> (supported in compose spec 3.9+ and by Podman Compose) to
+make the Ollama container opt-in:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">ollama</span><span class="p">:</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker.io/ollama/ollama:latest</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">jobhub-ollama</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">profiles</span><span class="p">:</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ollama</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="nt">volumes</span><span class="p">:</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ollama_models:/root/.ollama</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">  </span><span class="nt">ports</span><span class="p">:</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"11434:11434"</span>
+</code></pre></div>
+<p>With this:
+- <code>podman compose up -d</code> -- starts everything <strong>except</strong> Ollama (default).
+- <code>podman compose --profile ollama up -d</code> -- starts everything <strong>including</strong> Ollama.</p>
+<p>The <code>crawler-service</code> definition must <strong>remove</strong> the hard <code>depends_on: ollama</code> so it can
+start without the Ollama container. The Ollama provider in config is <code>enabled=false</code> by
+default; when someone enables it (<code>CRAWLER_OLLAMA_ENABLED=true</code> in <code>.env</code>) they must also
+start the Ollama profile.</p>
+<p>Apply the same change to <code>podman-compose.native.yml</code> and
+<code>deploy/shared/compose/docker-compose.prod.yml</code>.</p>
+<h3 id="10-what-to-keep-vs-remove">10. What to keep vs remove<a class="headerlink" href="#10-what-to-keep-vs-remove" title="Permanent link">&para;</a></h3>
+<p><strong>DELETE (files):</strong>
+- <code>FallbackJobEnricher.java</code> -- replaced by <code>ProviderChainJobEnricher</code>
+- <code>GeminiJobEnricher.java</code> -- logic absorbed into <code>GeminiEnrichmentProvider</code>
+- <code>OllamaJobEnricher.java</code> -- logic absorbed into <code>OllamaEnrichmentProvider</code>
+- <code>HostedEnricher.java</code> -- CDI qualifier, no longer needed
+- <code>LocalEnricher.java</code> -- CDI qualifier, no longer needed</p>
+<p><strong>REFACTOR (files):</strong>
+- <code>GeminiClient.java</code> -- remove <code>@RegisterRestClient(configKey = "gemini")</code>, keep as plain
+  JAX-RS interface (programmatically built by the factory)
+- <code>OllamaClient.java</code> -- remove <code>@RegisterRestClient(configKey = "ollama")</code>, keep as plain
+  JAX-RS interface. Whether it still extends <code>ChatApi</code> or inlines the method is a developer
+  choice.</p>
+<p><strong>KEEP (unchanged):</strong>
+- <code>EnrichmentParser.java</code> (in <code>adapter/out/client/support/</code>)
+- <code>EnrichmentPrompt.java</code> (in <code>adapter/out/client/support/</code>)
+- <code>CurrencyConverter.java</code> (in <code>adapter/out/client/support/</code>)
+- <code>JobEnricher.java</code> (domain port -- untouched)
+- <code>EnrichmentService.java</code> (domain service -- untouched)
+- <code>EnrichmentScheduler.java</code> (adapter/in/scheduler -- untouched)</p>
+<p><strong>CREATE (new files):</strong>
+- <code>adapter/out/client/enrichment/config/EnrichmentConfig.java</code>
+- <code>adapter/out/client/enrichment/config/ProviderConfig.java</code>
+- <code>adapter/out/client/enrichment/config/ProviderType.java</code>
+- <code>adapter/out/client/enrichment/provider/EnrichmentProvider.java</code>
+- <code>adapter/out/client/enrichment/provider/GeminiEnrichmentProvider.java</code>
+- <code>adapter/out/client/enrichment/provider/OpenAiEnrichmentProvider.java</code>
+- <code>adapter/out/client/enrichment/provider/OllamaEnrichmentProvider.java</code>
+- <code>adapter/out/client/enrichment/provider/EnrichmentProviderFactory.java</code>
+- <code>adapter/out/client/enrichment/ProviderChainJobEnricher.java</code>
+- <code>adapter/out/client/enrichment/OpenAiClient.java</code>
+- <code>api-contracts/src/main/resources/openapi/openai.yaml</code></p>
+<p><strong>UPDATE (existing files):</strong>
+- <code>application.properties</code> -- replace flat enrichment keys with indexed provider config
+- <code>application-prod.properties</code> -- update env var mappings
+- <code>application-dev.properties</code> -- if any dev-specific enrichment overrides exist
+- <code>src/test/resources/application.properties</code> -- test config for providers
+- <code>podman-compose.yml</code> -- Ollama profile, remove <code>depends_on: ollama</code>
+- <code>podman-compose.native.yml</code> -- same
+- <code>deploy/shared/compose/docker-compose.prod.yml</code> -- same
+- <code>.env.example</code> -- document new env vars (<code>CRAWLER_OLLAMA_ENABLED</code>, remove old ones)
+- <code>api-contracts/pom.xml</code> -- add openai.yaml generator execution</p>
+<h3 id="11-backward-compatibility">11. Backward compatibility<a class="headerlink" href="#11-backward-compatibility" title="Permanent link">&para;</a></h3>
+<p>The default <code>application.properties</code> ships with:
+- <code>providers[0]</code> = Gemini, <code>enabled=true</code>, <code>api-key=${GEMINI_API_KEY:}</code>
+- <code>providers[1]</code> = Ollama, <code>enabled=${CRAWLER_OLLAMA_ENABLED:false}</code></p>
+<p>Behavior with just <code>GEMINI_API_KEY</code> set (today's default):
+- Gemini provider is enabled and keyed -- tries its model chain.
+- Ollama provider is disabled -- not attempted.
+- If Gemini exhausts all models, <code>ProviderChainJobEnricher</code> throws,
+  <code>EnrichmentService</code> marks the job as failed.
+- This is different from today (where it would silently fall back to local Ollama).
+  This is <strong>intentional</strong> -- the user explicitly does not want CPU-heavy local fallback.</p>
+<p>Behavior with no env vars at all (fresh checkout, <code>quarkus:dev</code>):
+- Gemini provider is enabled but <code>api-key</code> is blank -- factory skips it (logs WARN).
+- Ollama provider is disabled.
+- All providers exhausted on first call -- enrichment jobs fail.
+- This is the correct default for a developer who has not configured any LLM key.
+  The enrichment scheduler still runs but marks jobs as failed, which is visible and
+  recoverable once a key is configured.</p>
+<p>Behavior to restore today's Ollama fallback:
+- Set <code>CRAWLER_OLLAMA_ENABLED=true</code> in <code>.env</code>.
+- Start with <code>podman compose --profile ollama up -d</code>.</p>
+<h3 id="12-test-impact">12. Test impact<a class="headerlink" href="#12-test-impact" title="Permanent link">&para;</a></h3>
+<p><strong>Unit tests:</strong></p>
+<ul>
+<li><code>GeminiJobEnricherTest</code> -- rename/refactor to <code>GeminiEnrichmentProviderTest</code>. The test
+  structure is identical (mock <code>GeminiClient</code>, verify model chaining, cooldown, Gemma quirks,
+  JSON extraction). The constructor changes to accept a <code>ProviderConfig</code> instead of
+  individual <code>@ConfigProperty</code> values.</li>
+<li>New <code>OpenAiEnrichmentProviderTest</code> -- same shape: mock <code>OpenAiClient</code>, verify model
+  chaining, cooldown, JSON parsing.</li>
+<li>New <code>OllamaEnrichmentProviderTest</code> -- same shape: mock <code>OllamaClient</code>, verify single-model
+  call, parse.</li>
+<li>New <code>ProviderChainJobEnricherTest</code> -- mock <code>EnrichmentProvider</code> list, verify chain
+  iteration, verify throw-on-exhaustion.</li>
+<li>New <code>EnrichmentProviderFactoryTest</code> -- verify factory creates the right provider type per
+  <code>ProviderType</code>, skips disabled entries, skips keyless non-ollama entries.</li>
+<li><code>EnrichmentServiceTest</code> -- <strong>unchanged</strong> (it mocks <code>JobEnricher</code>, which is the domain port
+  -- the adapter behind it is irrelevant to this test).</li>
+</ul>
+<p><strong>Existing tests that reference deleted classes:</strong>
+- Any test importing <code>FallbackJobEnricher</code>, <code>HostedEnricher</code>, <code>LocalEnricher</code>,
+  <code>GeminiJobEnricher</code>, or <code>OllamaJobEnricher</code> must be updated to the new class names.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Positive: adding a new LLM provider (DeepSeek, Groq, any OpenAI-compatible API) is
+  pure configuration -- no Java code changes needed.</li>
+<li>Positive: Ollama is opt-in, so the default compose stack no longer consumes CPU for a
+  container most users do not need.</li>
+<li>Positive: the domain layer (<code>JobEnricher</code>, <code>EnrichmentService</code>) is completely untouched.
+  The refactoring is confined to the adapter layer, respecting the hexagonal boundary.</li>
+<li>Positive: backward-compatible for users who already have <code>GEMINI_API_KEY</code> set.</li>
+<li>Negative / cost: the Ollama fallback is no longer automatic -- users who relied on
+  "hosted fails, silently use local" must now explicitly enable the Ollama provider. This is
+  intentional per user decision #4, but is a behavior change that must be documented.</li>
+<li>Negative / cost: programmatic REST client creation loses some Quarkus DevTools integration
+  (e.g. client-level config in application.properties, dev UI rest-client panel). Acceptable
+  because the per-provider config in <code>EnrichmentConfig</code> covers the same knobs (URL, timeout).</li>
+<li>Negative / cost: a new OpenAPI spec (<code>openai.yaml</code>) in api-contracts and a new generator
+  execution in its POM.</li>
+<li>Follow-ups: update <code>CLAUDE.md</code> to reflect the new enrichment config shape; update
+  <code>.env.example</code>; consider adding a startup log line listing all active providers and their
+  model chains for operational visibility.</li>
+</ul>
+<h2 id="alternatives-considered">Alternatives considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
+<ul>
+<li>
+<p><strong>Single flat config with <code>crawler.enrichment.provider-order=gemini,deepseek,ollama</code></strong> and
+  per-provider dot keys (<code>crawler.enrichment.gemini.models=...</code>). Rejected because it caps
+  at one instance per type (cannot have two OpenAI-compatible providers with different base
+  URLs/keys) and requires a separate naming convention for the order.</p>
+</li>
+<li>
+<p><strong>External JSON/YAML config file</strong> (<code>enrichment-providers.json</code>). Rejected because it
+  adds a file-management concern (mounting in compose, managing in CI/deploy), when Quarkus
+  indexed properties in <code>application.properties</code> are sufficient and native to the framework.</p>
+</li>
+<li>
+<p><strong>CDI <code>@Any Instance&lt;EnrichmentProvider&gt;</code> discovery</strong> (each provider is a CDI bean,
+  priority-ordered). Rejected because the number and configuration of providers is a
+  deployment concern, not a compile-time concern. A <code>@Produces</code> method would still need the
+  same config mapping, and CDI instance iteration does not give stable ordering without
+  <code>@Priority</code> annotations that would have to be derived from config anyway.</p>
+</li>
+<li>
+<p><strong>Keep <code>@RegisterRestClient</code> and use Quarkus named-client config</strong> (one config key per
+  provider). Rejected because Quarkus rest-client config keys are static (one per
+  <code>configKey</code> string); you cannot have N dynamically-named rest-clients from indexed config.
+  Programmatic <code>RestClientBuilder</code> is the standard MicroProfile approach for dynamic clients.</p>
+</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "content.code.copy", "content.code.annotate", "search.suggest", "search.highlight", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

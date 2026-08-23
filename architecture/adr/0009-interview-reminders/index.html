@@ -1,0 +1,1772 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-service job-tracking platform — architecture, development & API reference.">
+      
+      
+      
+        <link rel="canonical" href="https://davidrodriguez-create.github.io/JobHub/architecture/adr/0009-interview-reminders/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>ADR 0009: Interview Reminders (24h + 1h): Idempotency, Internal Endpoint, Preference Shape - JobHub</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#adr-0009-interview-reminders-24h-1h-idempotency-internal-endpoint-preference-shape" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="JobHub" class="md-header__button md-logo" aria-label="JobHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JobHub
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              ADR 0009: Interview Reminders (24h + 1h): Idempotency, Internal Endpoint, Preference Shape
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DavidRodriguez-create/JobHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidRodriguez-create/JobHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../development/local-setup/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../services/crawler/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Services
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../api/auth/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../deployment/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Deployment
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="JobHub" class="md-nav__button md-logo" aria-label="JobHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    JobHub
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DavidRodriguez-create/JobHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidRodriguez-create/JobHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hexagonal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hexagonal (Ports & Adapters)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../clean/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clean (Concentric layers)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/local-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/adding-a-feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding a feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/docs-site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/crawler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    crawler-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/job/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    auth-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    application-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/notification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notification-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    auth-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/job/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    application-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/notification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notification-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-idempotency-a-notificationinterview_reminder_sent-log-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Idempotency: a notification.interview_reminder_sent log table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-internal-endpoint-get-internalapplicationsupcoming-next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Internal endpoint: GET /internal/applications/upcoming-next-steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-preference-shape-master-disable-email-channel-choice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Preference shape: master disable + email channel choice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-scheduler-cadence-and-window" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Scheduler cadence and window
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-notification-service-hexagonal-additions-shapes-only-for-the-developer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. notification-service hexagonal additions (shapes only, for the developer)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-migration-number-ranges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Migration-number ranges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-config-keys-notification-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Config keys (notification-service)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-test-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Test shape
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-considered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives considered
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="adr-0009-interview-reminders-24h-1h-idempotency-internal-endpoint-preference-shape">ADR 0009: Interview Reminders (24h + 1h): Idempotency, Internal Endpoint, Preference Shape<a class="headerlink" href="#adr-0009-interview-reminders-24h-1h-idempotency-internal-endpoint-preference-shape" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Proposed</li>
+<li><strong>Date:</strong> 2026-06-15</li>
+<li><strong>Deciders:</strong> Principal Architect (jobhub-architect); David R H</li>
+<li><strong>Affects:</strong> notification-service, application-service, api-contracts, db/init</li>
+</ul>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
+<p>Story #81 (US 4, epic #96) adds interview reminders. A user with a scheduled next step (an
+application carrying <code>next_step_label</code> + <code>next_step_date</code>) should be reminded 24 hours and 1
+hour before that step. Each reminder is delivered as an in-app notification (US 2 notification
+center) and, optionally, an email. Reminder content must include the next-step label
+("Interview with Product Manager"), the date/time, and the company name. Reminders must be
+gated by the <code>interview_reminders</code> preference and must never be sent twice.</p>
+<p>The story owner clarified: "the user should have the ability to disable the notifications not
+just choose between the two." So the preference model must support both (a) disabling interview
+reminders entirely and (b) choosing the delivery channel(s).</p>
+<p>This is the second scheduled, cross-service feature in notification-service, after the weekly
+digest (ADR 0008). It reuses that ADR's established patterns: the <code>X-Service-Key</code> internal
+auth, the hexagonal scheduler to use-case to outbound-gateway flow, and a per-run log table for
+idempotency.</p>
+<p>JobHub conventions in scope: Hexagonal architecture for notification-service (ADR 0007) and
+application-service, contract-first api-contracts (interface-only generation), schema-per-service,
+DB owned by <code>db/init/</code> SQL, no framework annotations below the adapter layer.</p>
+<p>What already exists on the base that this design builds on:</p>
+<ul>
+<li>notification-service: <code>WeeklyDigestScheduler</code>, <code>WeeklyDigestService</code>, <code>DigestRunEntity</code> /
+  <code>DigestRunRepository</code> / <code>DigestRunMapper</code> idempotency precedent, the <code>AppInternalRestClient</code></li>
+<li><code>InterestProfileGatewayAdapter</code> outbound pattern, <code>NotificationPanacheRepository</code> /
+  <code>NotificationEntity</code> for in-app delivery, <code>QuteDigestMailer</code> for email.</li>
+<li><code>NotificationType.INTERVIEW_REMINDER</code> and <code>NotificationPreferences.interviewReminders</code>
+  (boolean, column <code>interview_reminders</code>, default TRUE) already exist.</li>
+<li>application-service: the <code>InternalUserResource implements InternalApi</code> + <code>ServiceKeyFilter</code>
+  service-to-service pattern, and the <code>next_step_label</code> (TEXT) / <code>next_step_date</code> (DATE) /
+  <code>next_step_reminder_at</code> (TIMESTAMPTZ) columns on <code>applications.application</code>.</li>
+</ul>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<h3 id="1-idempotency-a-notificationinterview_reminder_sent-log-table">1. Idempotency: a <code>notification.interview_reminder_sent</code> log table<a class="headerlink" href="#1-idempotency-a-notificationinterview_reminder_sent-log-table" title="Permanent link">&para;</a></h3>
+<p>We will add a forward-only log table keyed by <code>(user_id, application_id, offset)</code> with a UNIQUE
+constraint, mirroring the <code>digest_run</code> precedent rather than putting boolean flags on the
+application row.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">notification</span><span class="p">.</span><span class="n">interview_reminder_sent</span><span class="w"> </span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="n">id</span><span class="w">              </span><span class="n">UUID</span><span class="w"> </span><span class="n">PK</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">gen_random_uuid</span><span class="p">(),</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="n">user_id</span><span class="w">         </span><span class="n">UUID</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">           </span><span class="c1">-- references auth.user.id, no FK (cross-schema)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="n">application_id</span><span class="w">  </span><span class="n">UUID</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">           </span><span class="c1">-- references applications.application.id, no FK</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="n">reminder_offset</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">           </span><span class="c1">-- 'H24' | 'H1'</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="n">next_step_date</span><span class="w">  </span><span class="nb">DATE</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">           </span><span class="c1">-- the step date this reminder was for (audit / reschedule)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="n">channels</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">           </span><span class="c1">-- which channels fired, e.g. 'in_app' or 'in_app,email'</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="n">sent_at</span><span class="w">         </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">chk_interview_reminder_offset</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">reminder_offset</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'H24'</span><span class="p">,</span><span class="w"> </span><span class="s1">'H1'</span><span class="p">)),</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">uq_interview_reminder_sent</span><span class="w"> </span><span class="k">UNIQUE</span><span class="w"> </span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">application_id</span><span class="p">,</span><span class="w"> </span><span class="n">reminder_offset</span><span class="p">)</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
+</code></pre></div>
+<p>The scheduler inserts one row per (user, application, offset) the first time it fires that
+reminder. The UNIQUE constraint is the hard guarantee against double-send: a second attempt
+(retry, overlapping scheduler tick, restart) hits the constraint and is skipped. The service
+checks existence before doing outbound work (in-app + email) and relies on the constraint as
+the backstop, exactly as <code>WeeklyDigestService</code> checks <code>hasSentThisWeek(userId)</code> before working.</p>
+<p>Why the UNIQUE key is <code>(user_id, application_id, reminder_offset)</code> and NOT date-scoped: a single
+application has at most one open next step at a time, and the H24/H1 pair is one-shot per step.
+If the user reschedules the step to a new date, that is a product decision recorded in
+<code>next_step_date</code> for audit; re-arming reminders for a moved step is a follow-up (see
+Consequences), not v1 behaviour. Keeping the key date-free makes "already reminded for this
+step" unambiguous.</p>
+<h3 id="2-internal-endpoint-get-internalapplicationsupcoming-next-steps">2. Internal endpoint: <code>GET /internal/applications/upcoming-next-steps</code><a class="headerlink" href="#2-internal-endpoint-get-internalapplicationsupcoming-next-steps" title="Permanent link">&para;</a></h3>
+<p>We will add an internal, <code>X-Service-Key</code>-protected endpoint to application-service that returns
+upcoming next steps across ALL users, following the interest-profile precedent
+(<code>InternalUserResource implements InternalApi</code>, <code>@PermitAll</code>, <code>ServiceKeyFilter</code>).</p>
+<ul>
+<li><strong>Path / method:</strong> <code>GET /internal/applications/upcoming-next-steps</code></li>
+<li><strong>Query param:</strong> <code>withinHours</code> (integer, 1 to 168, default 26): a forward window from now.
+  The caller asks for a window generous enough to cover the largest reminder offset (24h) plus
+  its own poll slack, then computes the exact 24h and 1h fire times locally. Default 26 = 24h
+  offset + 2h scheduler slack.</li>
+<li><strong>Response (<code>UpcomingNextStepsResponse</code>):</strong> <code>{ items: [UpcomingNextStepItem] }</code> where each
+  item is <code>{ userId, applicationId, nextStepLabel, nextStepDate, nextStepReminderAt?,
+  companyName?, status }</code>. The query selects applications with a non-empty <code>next_step_label</code>, a
+  <code>next_step_date</code> within the window, and a non-terminal status, joined to the job snapshot /
+  manual-entry job for <code>companyName</code>.</li>
+<li>Returns 200 with empty <code>items</code> when nothing is upcoming.</li>
+</ul>
+<p>This puts the cross-user query in application-service (its data, its schema), keeping
+schema-per-service isolation intact. It mirrors the rationale in ADR 0008 section 2 for the
+interest-profile endpoint.</p>
+<p><strong>No application-service schema change.</strong> This is a read-only aggregation over existing
+columns (<code>user_id</code>, <code>next_step_label</code>, <code>next_step_date</code>, <code>next_step_reminder_at</code>, <code>status</code>)
+joined to the existing <code>job_post_snapshot</code> / <code>user_job_post</code> tables for the company name.
+applications migration 031 is therefore <strong>N/A</strong> for this story.</p>
+<p><code>next_step_date</code> is a DATE, so the reminder "date/time" granularity is day-level unless
+<code>next_step_reminder_at</code> is set. notification-service computes the H24/H1 fire instants from
+<code>next_step_date</code> (treated as start-of-day in the deployment timezone) and may use
+<code>next_step_reminder_at</code> when present. Choosing a precise time-of-day model for interviews is a
+product/data follow-up and does not change this contract.</p>
+<h3 id="3-preference-shape-master-disable-email-channel-choice">3. Preference shape: master disable + email channel choice<a class="headerlink" href="#3-preference-shape-master-disable-email-channel-choice" title="Permanent link">&para;</a></h3>
+<p>We will keep the existing <code>interviewReminders</code> boolean as the <strong>master disable</strong> and add a new
+<code>interviewReminderEmail</code> boolean for the <strong>email channel choice</strong>. This directly satisfies the
+owner's two requirements and stays consistent with how <code>weeklyDigestEmail</code> and
+<code>inAppNotificationsEnabled</code> already model email-vs-in-app as independent booleans.</p>
+<p>Semantics:</p>
+<ul>
+<li><code>interviewReminders = false</code>: nothing is sent on any channel. This is "disable entirely".</li>
+<li><code>interviewReminders = true</code>: an in-app notification is always created, and an email is sent
+  <strong>additionally</strong> only if <code>interviewReminderEmail = true</code>. So in-app is the always-on channel
+  when reminders are enabled, and email is the opt-in extra channel.</li>
+</ul>
+<p>Defaults (backward-compatible): <code>interviewReminders</code> keeps its existing default <code>TRUE</code>; the new
+<code>interviewReminderEmail</code> defaults <code>TRUE</code>. A user who never touched preferences gets in-app +
+email reminders, matching the spec's intent that reminders are on by default. The new column is
+<code>NOT NULL DEFAULT TRUE</code>, so existing preference rows backfill safely with no data migration of
+values.</p>
+<p>We reject an in-app toggle for interview reminders separate from the master switch: when
+reminders are enabled, the in-app notification is the baseline, low-cost delivery and the
+notification center is the canonical surface for US 2. "Disable in-app but keep email" is not a
+requested mode and would add a third boolean for no product value. If the global
+<code>inAppNotificationsEnabled</code> master is later wired to suppress all in-app surfaces, interview
+reminders inherit that behaviour like any other in-app notification; that interaction is a
+notification-service implementation detail, not a contract change.</p>
+<p>This shape drives both contracts: the notification-service preferences response/request gain
+<code>interviewReminderEmail</code>, and the entity/column <code>interview_reminder_email</code> is added (migration
+043, below). The frontend preferences screen renders the master toggle plus an "also email me"
+sub-toggle.</p>
+<h3 id="4-scheduler-cadence-and-window">4. Scheduler cadence and window<a class="headerlink" href="#4-scheduler-cadence-and-window" title="Permanent link">&para;</a></h3>
+<p>A <code>@Scheduled</code> method in <code>adapter/in/scheduler/InterviewReminderScheduler</code> runs hourly
+(<code>cron = "0 0 * * * ?"</code>, config key <code>notification.interview-reminder.cron</code>), gated by
+<code>notification.interview-reminder.enabled</code> (default <code>true</code>), mirroring <code>WeeklyDigestScheduler</code>.</p>
+<p>Per tick the scheduler:</p>
+<ol>
+<li>Calls <code>GET /internal/applications/upcoming-next-steps?withinHours=26</code> (one batched
+   cross-user call, like the digest's batched email fetch).</li>
+<li>Loads local <code>notification_preferences</code> for the returned user IDs and drops users with
+   <code>interview_reminders = false</code>.</li>
+<li>For each remaining (user, application): computes the H24 and H1 fire instants from
+   <code>next_step_date</code> (and <code>next_step_reminder_at</code> when present). For each offset whose fire
+   instant is at or before now (within the current window) and not already logged in
+   <code>interview_reminder_sent</code>, it creates the in-app notification, optionally sends the email
+   (if <code>interview_reminder_email = true</code>), then inserts the <code>interview_reminder_sent</code> row.</li>
+<li>Records failures per (user, application, offset) and continues, as the digest service does.</li>
+</ol>
+<p>Hourly cadence with a 26h lookahead means each reminder offset has up to an hour of slack
+without missing or duplicating: idempotency comes from the log table, not from precise timing,
+so an hourly tick that overlaps a previous slow run is safe. Email addresses are resolved via
+the existing <code>UserEmailGateway</code> (auth-service <code>/internal/users/emails</code>) only for users who will
+actually receive an email.</p>
+<h3 id="5-notification-service-hexagonal-additions-shapes-only-for-the-developer">5. notification-service hexagonal additions (shapes only, for the developer)<a class="headerlink" href="#5-notification-service-hexagonal-additions-shapes-only-for-the-developer" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>domain/
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  model/
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    UpcomingNextStep            -- userId, applicationId, label, stepDate, reminderAt?, company?, status
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    ReminderOffset             -- enum H24, H1
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    InterviewReminderSent      -- userId, applicationId, offset, stepDate, channels, sentAt
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  port/
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    in/
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>      SendInterviewRemindersUseCase   -- triggered by scheduler (run())
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    out/
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>      UpcomingNextStepsGateway        -- fetch upcoming steps from application-service
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>      InterviewReminderSentRepository -- exists()/save() against the log table
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>      (reuse) UserEmailGateway, NotificationRepository, NotificationPreferencesRepository,
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>              DigestMailer-style InterviewReminderMailer (new Qute template) or extend mail port
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>  service/
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    InterviewReminderService   -- implements the use case, orchestrates the flow
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>adapter/
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>  in/scheduler/InterviewReminderScheduler
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>  out/
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    client/application/        -- add getUpcomingNextSteps to AppInternalRestClient + a gateway adapter
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    persistence/entity/InterviewReminderSentEntity, mapper/InterviewReminderSentMapper,
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>                InterviewReminderSentPanacheRepository
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    mail/InterviewReminderMailer (+ templates/interview-reminder-email.html)
+</code></pre></div>
+<p><code>NotificationPreferences</code> (domain + entity) gains <code>interviewReminderEmail</code>. No framework
+annotations below the adapter layer; gateways depend on generated contract models only at the
+adapter boundary, as <code>InterestProfileGatewayAdapter</code> does.</p>
+<h3 id="6-migration-number-ranges">6. Migration-number ranges<a class="headerlink" href="#6-migration-number-ranges" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Ticket</th>
+<th>Service</th>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>#105 follow-up (dev)</td>
+<td>notification-service</td>
+<td><code>db/init/043-notification-interview-reminders.sql</code></td>
+<td><code>interview_reminder_sent</code> table AND <code>ALTER TABLE notification.notification_preferences ADD COLUMN interview_reminder_email BOOLEAN NOT NULL DEFAULT TRUE</code></td>
+</tr>
+<tr>
+<td>#105 follow-up (dev)</td>
+<td>application-service</td>
+<td>(none)</td>
+<td><strong>N/A</strong> (read-only query over existing columns, no schema change)</td>
+</tr>
+</tbody>
+</table>
+<p>notification = 043 is the next free number after 040/041/042. Both notification changes (new
+table + new preferences column) live in the single 043 file since they are one story's
+notification-schema delta. On an existing data volume this is a forward-only file that must be
+applied by hand per CLAUDE.md ("Running the full stack in Podman").</p>
+<h3 id="7-config-keys-notification-service">7. Config keys (notification-service)<a class="headerlink" href="#7-config-keys-notification-service" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>notification.interview-reminder.enabled</code></td>
+<td><code>true</code></td>
+<td>Kill switch for the scheduler</td>
+</tr>
+<tr>
+<td><code>notification.interview-reminder.cron</code></td>
+<td><code>0 0 * * * ?</code></td>
+<td>Hourly cron (overridable)</td>
+</tr>
+<tr>
+<td><code>notification.interview-reminder.within-hours</code></td>
+<td><code>26</code></td>
+<td>Lookahead window passed to the internal endpoint</td>
+</tr>
+</tbody>
+</table>
+<p>Reuses the existing <code>notification.internal.service-key</code>, <code>quarkus.rest-client.app-internal.url</code>,
+and <code>quarkus.rest-client.auth-internal.url</code> from ADR 0008. application-service reuses its
+existing <code>ServiceKeyFilter</code> and key config; no new config there.</p>
+<h3 id="8-test-shape">8. Test shape<a class="headerlink" href="#8-test-shape" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unit: <code>InterviewReminderService</code></td>
+<td>Computes H24/H1, skips disabled users, skips already-sent, chooses channels</td>
+<td>Mockito, mock all outbound ports</td>
+</tr>
+<tr>
+<td>Unit: gateway adapter</td>
+<td>Maps <code>UpcomingNextStepsResponse</code> to domain</td>
+<td>Mockito, mock RestClient</td>
+</tr>
+<tr>
+<td>Unit: <code>InterviewReminderSentMapper</code></td>
+<td>Entity/domain mapping</td>
+<td>Plain JUnit</td>
+</tr>
+<tr>
+<td>Component (notification): <code>InterviewReminderScheduler</code></td>
+<td>End-to-end with WireMock for app/auth-service, DevServices DB, mock mailer; assert UNIQUE prevents double-send</td>
+<td><code>@QuarkusTest</code> + WireMock</td>
+</tr>
+<tr>
+<td>Component (application): internal endpoint</td>
+<td><code>X-Service-Key</code> validation, window filtering, terminal-status exclusion, company resolution</td>
+<td><code>@QuarkusTest</code> + DevServices</td>
+</tr>
+</tbody>
+</table>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Positive:</strong> The log-table idempotency reuses the proven <code>digest_run</code> pattern and keeps the
+  hard guarantee (UNIQUE constraint) in the database, not in scheduler timing. The H24/H1 are
+  independent rows, so one offset can succeed while the other retries.</li>
+<li><strong>Positive:</strong> Keeping the cross-user query in application-service preserves schema-per-service
+  isolation; notification-service never reads the <code>applications</code> schema directly.</li>
+<li><strong>Positive:</strong> The preference shape is a minimal, backward-compatible extension (one new
+  boolean, default TRUE) that satisfies both "disable entirely" and "choose channel" without a
+  data migration of existing values.</li>
+<li><strong>Negative / cost:</strong> A new outbound operation, a new Qute template, a new entity/repository,
+  and a new scheduler in notification-service; component tests need WireMock (already present
+  since ADR 0008).</li>
+<li><strong>Negative / cost:</strong> <code>next_step_date</code> is day-granular, so without <code>next_step_reminder_at</code> the
+  "1h before" reminder is approximate. Acceptable for v1; a precise interview time-of-day is a
+  follow-up.</li>
+<li><strong>Follow-ups:</strong></li>
+<li>Developer: write <code>db/init/043-notification-interview-reminders.sql</code> (table + column), the
+    notification-service skeleton in section 5, and the application-service internal endpoint /
+    query.</li>
+<li>Rescheduling: re-arming reminders when a user moves <code>next_step_date</code> is out of scope; if
+    desired later, change the UNIQUE key to include <code>next_step_date</code> or clear prior log rows on
+    reschedule. Record in a future ADR.</li>
+<li>DevOps: no new env vars beyond ADR 0008's <code>JOBHUB_INTERNAL_SERVICE_KEY</code> and the SMTP config
+    already required by the digest.</li>
+<li>Frontend (PDA): preferences UI gains the "also email me" sub-toggle under the interview
+    reminders master switch; default both on.</li>
+</ul>
+<h2 id="alternatives-considered">Alternatives considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Boolean flags on the application row (<code>h24_reminder_sent</code>, <code>h1_reminder_sent</code>)</strong>: rejected.
+  It would force a schema change in application-service (breaking the "no app migration" result),
+  put notification-service's delivery state inside another service's bounded context, and lose
+  the audit trail (when/what channel) that a log table gives. The <code>digest_run</code> precedent already
+  favours a log table.</li>
+<li><strong>Date-scoped idempotency key <code>(user_id, application_id, offset, next_step_date)</code></strong>: rejected
+  for v1 because it complicates "already reminded for this step" and invites duplicate reminders
+  if a step's date is edited mid-flight. Rescheduling is an explicit follow-up.</li>
+<li><strong>A third in-app channel toggle for interview reminders</strong>: rejected. When reminders are
+  enabled, in-app is the baseline surface (US 2 notification center). A separate "disable in-app
+  but keep email" mode was not requested and adds a boolean for no product value.</li>
+<li><strong>Per-user calls to fetch upcoming steps</strong>: rejected. A single cross-user windowed query is
+  far cheaper than N per-user calls and matches the digest's batched-fetch approach. The window
+  bounds the result size.</li>
+<li><strong>Push reminder fan-out from application-service (event on next-step set)</strong>: rejected as
+  over-engineered: it needs scheduled delivery and retry/idempotency state somewhere regardless,
+  and JobHub has no message bus. A polling scheduler with a log table is adequate for the scale.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "content.code.copy", "content.code.annotate", "search.suggest", "search.highlight", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

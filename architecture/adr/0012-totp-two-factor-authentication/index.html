@@ -1,0 +1,1698 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-service job-tracking platform — architecture, development & API reference.">
+      
+      
+      
+        <link rel="canonical" href="https://davidrodriguez-create.github.io/JobHub/architecture/adr/0012-totp-two-factor-authentication/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>ADR 0012: TOTP Two-Factor Authentication - JobHub</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#adr-0012-totp-two-factor-authentication" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="JobHub" class="md-header__button md-logo" aria-label="JobHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JobHub
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              ADR 0012: TOTP Two-Factor Authentication
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DavidRodriguez-create/JobHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidRodriguez-create/JobHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../development/local-setup/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../services/crawler/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Services
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../api/auth/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../deployment/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Deployment
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="JobHub" class="md-nav__button md-logo" aria-label="JobHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    JobHub
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DavidRodriguez-create/JobHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidRodriguez-create/JobHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hexagonal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hexagonal (Ports & Adapters)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../clean/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clean (Concentric layers)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/local-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/adding-a-feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding a feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/docs-site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/crawler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    crawler-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/job/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    auth-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    application-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/notification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notification-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    auth-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/job/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    application-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/notification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notification-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-totp-secret-storage-separate-table-not-a-column-on-authuser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. TOTP secret storage: separate table, not a column on auth.user
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-login-flow-two-step-with-a-short-lived-2fa-challenge-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Login flow: two-step with a short-lived 2FA challenge token
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-2fa-setup-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 2FA setup flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-2fa-disable-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 2FA disable flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-backup-recovery-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Backup / recovery codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-password-change-with-2fa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Password change with 2FA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-account-response-twofactorenabled-flag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Account response: twoFactorEnabled flag
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-domain-model-clean-architecture-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Domain model (Clean Architecture layers)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-first-time-2fa-recommendation-notification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. First-time 2FA recommendation notification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-migration-numbers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Migration numbers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-considered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives considered
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="adr-0012-totp-two-factor-authentication">ADR 0012: TOTP Two-Factor Authentication<a class="headerlink" href="#adr-0012-totp-two-factor-authentication" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-06-22</li>
+<li><strong>Deciders:</strong> David R H (owner), jobhub-architect</li>
+<li><strong>Affects:</strong> auth-service, notification-service, api-contracts, db/init, JobHub-ui</li>
+</ul>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
+<p>Users have no second factor protecting their accounts. A compromised password gives
+full access to the account, its applications, and all personal data stored in JobHub.
+Story #133 / sub-issue #168 adds TOTP-based two-factor authentication (RFC 6238) as an
+opt-in security feature. The auth-service follows Clean Architecture (CLAUDE.md decision
+guide), so the domain layer must own invariants (secret lifecycle, code validation
+interface) while adapters handle the TOTP library and persistence.</p>
+<p>Key constraints that shape the design:</p>
+<ol>
+<li>The existing <code>POST /auth/login</code> contract returns <code>{ token, expiresIn, account }</code> and
+   is consumed by the UI and potentially by the application-service rest client. Adding a
+   mandatory field would break non-2FA users. The change must be backward-compatible.</li>
+<li>TOTP secrets are high-value cryptographic material (equivalent to a password). They
+   must be encrypted at rest in the database, not stored as plaintext.</li>
+<li>Backup/recovery codes are needed so users are not permanently locked out if they lose
+   their authenticator device.</li>
+<li>The existing email-based verification flow (<code>VerificationCode</code>, <code>VerificationAction</code>)
+   is for destructive-action confirmation. TOTP is a fundamentally different mechanism
+   (time-based, device-bound, not email-delivered) and must not be conflated with it.</li>
+<li>The notification-service should send a one-time SYSTEM notification recommending 2FA
+   setup to newly registered users.</li>
+</ol>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<h3 id="1-totp-secret-storage-separate-table-not-a-column-on-authuser">1. TOTP secret storage: separate table, not a column on auth.user<a class="headerlink" href="#1-totp-secret-storage-separate-table-not-a-column-on-authuser" title="Permanent link">&para;</a></h3>
+<p>We will store TOTP configuration in a new <code>auth.totp_secret</code> table rather than adding
+columns to <code>auth.user</code>. Rationale:</p>
+<ul>
+<li>Separation of concerns: TOTP data (encrypted secret, backup codes, verified-at
+  timestamp) is a distinct lifecycle from the user profile.</li>
+<li>The <code>auth.user</code> table already has nine columns; adding five more dilutes its purpose.</li>
+<li>A separate table allows a clean <code>1:0..1</code> relationship: no TOTP row means 2FA is not
+  enabled, which is the natural default.</li>
+<li>The table can be independently audited, backed up, or rotated.</li>
+</ul>
+<p>A <code>two_factor_enabled</code> boolean column will be added to <code>auth.user</code> as a denormalized
+read flag, so the login flow and account response can check 2FA status without joining
+the TOTP table on every request. This flag is set to <code>true</code> only after setup verification
+succeeds and set to <code>false</code> when 2FA is disabled.</p>
+<h3 id="2-login-flow-two-step-with-a-short-lived-2fa-challenge-token">2. Login flow: two-step with a short-lived 2FA challenge token<a class="headerlink" href="#2-login-flow-two-step-with-a-short-lived-2fa-challenge-token" title="Permanent link">&para;</a></h3>
+<p>For users with 2FA enabled, login becomes two steps:</p>
+<p><strong>Step 1</strong> (<code>POST /auth/login</code>, existing endpoint):
+- Validates email + password as today.
+- If 2FA is NOT enabled: returns the full <code>LoginResponse</code> (unchanged behavior).
+- If 2FA IS enabled: returns HTTP 200 with a new response shape
+  <code>TwoFactorChallengeResponse</code> containing a <code>twoFactorToken</code> (short-lived, opaque,
+  NOT a JWT) and <code>twoFactorRequired: true</code>. The <code>token</code> and <code>account</code> fields are absent.</p>
+<p>To maintain backward compatibility, the existing <code>LoginResponse</code> schema gains two
+optional fields: <code>twoFactorRequired</code> (boolean, default false) and <code>twoFactorToken</code>
+(string, nullable). When <code>twoFactorRequired</code> is true, the <code>token</code> field is null and
+the UI must proceed to step 2. When false, behavior is identical to today.</p>
+<p><strong>Step 2</strong> (<code>POST /auth/login/2fa</code>, new endpoint):
+- Accepts <code>{ twoFactorToken, totpCode }</code>.
+- Validates the challenge token (not expired, not consumed, belongs to the right user).
+- Validates the TOTP code against the user's stored secret.
+- On success: returns the full <code>LoginResponse</code> (same shape as a non-2FA login).
+- The challenge token is single-use and expires after 5 minutes.</p>
+<p>The challenge token is stored in a new <code>auth.two_factor_challenge</code> table, not as a JWT,
+because: (a) it must be single-use (consumed on success), (b) it carries no claims the
+client needs, (c) it should be invalidatable server-side.</p>
+<h3 id="3-2fa-setup-flow">3. 2FA setup flow<a class="headerlink" href="#3-2fa-setup-flow" title="Permanent link">&para;</a></h3>
+<ol>
+<li><code>POST /account/2fa/setup</code> (authenticated): generates a new TOTP secret, stores it
+   as unverified in <code>auth.totp_secret</code>, and returns the <code>otpauth://</code> URI (for QR code
+   generation on the client) plus a base32-encoded setup key for manual entry.</li>
+<li><code>POST /account/2fa/verify-setup</code> (authenticated): accepts <code>{ totpCode }</code>, validates
+   it against the unverified secret, marks it as verified, sets
+   <code>auth.user.two_factor_enabled = true</code>, and returns a set of single-use backup codes.</li>
+<li>Calling setup again while 2FA is already enabled returns 409 Conflict.</li>
+</ol>
+<h3 id="4-2fa-disable-flow">4. 2FA disable flow<a class="headerlink" href="#4-2fa-disable-flow" title="Permanent link">&para;</a></h3>
+<p><code>POST /account/2fa/disable</code> (authenticated): accepts <code>{ totpCode }</code> (a valid TOTP code
+from the current secret). On success, deletes the <code>auth.totp_secret</code> row, deletes any
+remaining backup codes, sets <code>auth.user.two_factor_enabled = false</code>. Returns 204.</p>
+<h3 id="5-backup-recovery-codes">5. Backup / recovery codes<a class="headerlink" href="#5-backup-recovery-codes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>8 single-use recovery codes are generated when 2FA setup is verified.</li>
+<li>Stored hashed (bcrypt) in <code>auth.totp_backup_code</code>, each with a <code>consumed_at</code> column.</li>
+<li>A backup code can be used in place of a TOTP code at <code>POST /auth/login/2fa</code> and at
+  <code>POST /account/2fa/disable</code>. The code is consumed (single-use) on successful use.</li>
+<li>Users can regenerate backup codes via <code>POST /account/2fa/backup-codes</code> (requires a
+  valid TOTP code). This invalidates all prior backup codes and returns 8 new ones.</li>
+</ul>
+<h3 id="6-password-change-with-2fa">6. Password change with 2FA<a class="headerlink" href="#6-password-change-with-2fa" title="Permanent link">&para;</a></h3>
+<p>The existing <code>ChangePasswordRequest</code> gains an optional <code>totpCode</code> field. When 2FA is
+enabled, the backend requires a valid TOTP code (or backup code) in addition to the
+current password. When 2FA is not enabled, the field is ignored. This avoids a separate
+endpoint.</p>
+<h3 id="7-account-response-twofactorenabled-flag">7. Account response: twoFactorEnabled flag<a class="headerlink" href="#7-account-response-twofactorenabled-flag" title="Permanent link">&para;</a></h3>
+<p>The existing <code>AccountResponse</code> schema gains a <code>twoFactorEnabled</code> boolean field
+(default false). The UI uses this to show/hide the 2FA settings toggle and to know
+whether to expect a two-step login. This is a non-breaking additive change.</p>
+<h3 id="8-domain-model-clean-architecture-layers">8. Domain model (Clean Architecture layers)<a class="headerlink" href="#8-domain-model-clean-architecture-layers" title="Permanent link">&para;</a></h3>
+<p><strong>Layer 1 (domain/entity):</strong>
+- <code>TotpSecret</code>: id, userId, encryptedSecret, verified, verifiedAt, createdAt.
+  Invariant: <code>isActive()</code> returns true only when <code>verified == true</code>.
+- <code>TwoFactorChallenge</code>: id, userId, tokenHash, expiresAt, consumedAt, createdAt.
+  Invariant: <code>isUsable(now)</code> returns true when unconsumed and unexpired.
+- <code>BackupCode</code>: id, totpSecretId, codeHash, consumedAt, createdAt.
+  Invariant: <code>isUsable()</code> returns true when <code>consumedAt == null</code>.
+- New domain exception: <code>TwoFactorRequiredException</code> (carries the challenge token).
+- New domain exception: <code>InvalidTotpCodeException</code>.
+- New domain exception: <code>TwoFactorAlreadyEnabledException</code>.
+- New domain exception: <code>TwoFactorNotEnabledException</code>.</p>
+<p><strong>Layer 2 (application/port + usecase):</strong>
+- Port out: <code>TotpSecretRepository</code>, <code>TwoFactorChallengeRepository</code>,
+  <code>BackupCodeRepository</code>, <code>TotpCodeVerifier</code> (interface for the TOTP library adapter),
+  <code>SecretEncryptor</code> (interface for AES encryption of the TOTP secret at rest).
+- Use cases: <code>SetupTwoFactorUseCase</code>, <code>VerifyTwoFactorSetupUseCase</code>,
+  <code>DisableTwoFactorUseCase</code>, <code>VerifyLoginTwoFactorUseCase</code>,
+  <code>RegenerateBackupCodesUseCase</code>.
+- The existing <code>LoginUseCase</code> / <code>LoginService</code> is modified: when 2FA is enabled,
+  instead of returning a <code>LoginResult</code>, it throws <code>TwoFactorRequiredException</code> which
+  carries the challenge token. The <code>LoginResource</code> catches this via an
+  <code>ExceptionMapper</code> and returns the 200 + <code>twoFactorRequired: true</code> response.
+  Alternatively, <code>LoginResult</code> can be extended with an optional challenge field,
+  avoiding the exception-as-flow-control pattern. We choose the latter: <code>LoginResult</code>
+  gains an optional <code>twoFactorToken</code> field, and <code>LoginService</code> returns it when 2FA is
+  required instead of the JWT token.
+- The existing <code>ChangePasswordService</code> checks <code>user.isTwoFactorEnabled()</code> and, if true,
+  validates the TOTP code from the command.</p>
+<p><strong>Layer 3 (adapters):</strong>
+- <code>adapter/out/persistence/entity/TotpSecretEntity</code>, <code>TwoFactorChallengeEntity</code>,
+  <code>BackupCodeEntity</code>.
+- <code>adapter/out/persistence/TotpSecretJpaRepository</code>, etc.
+- <code>adapter/out/security/TotpCodeVerifierAdapter</code> (wraps a Java TOTP library, e.g.
+  <code>com.j256.two-factor-auth</code> or <code>dev.samstevens.totp</code>).
+- <code>adapter/out/security/AesSecretEncryptor</code> (AES-256-GCM encryption for TOTP secrets).
+- New REST endpoints on <code>AccountResource</code> (2fa/setup, 2fa/verify-setup, 2fa/disable,
+  2fa/backup-codes) and on <code>LoginResource</code> (login/2fa).
+- New ExceptionMappers for the new domain exceptions.</p>
+<h3 id="9-first-time-2fa-recommendation-notification">9. First-time 2FA recommendation notification<a class="headerlink" href="#9-first-time-2fa-recommendation-notification" title="Permanent link">&para;</a></h3>
+<p>The notification-service will add a new <code>NotificationType</code> enum value:
+<code>SECURITY_RECOMMENDATION</code>. After successful email verification (or after the first
+login, depending on implementation), the auth-service or a cross-service scheduler
+creates an in-app notification recommending 2FA setup. Since notification-service
+already has the infrastructure for creating notifications, the simplest approach is:</p>
+<ul>
+<li>Auth-service does NOT call notification-service directly (no outbound client).</li>
+<li>Instead, notification-service's existing scheduled infrastructure (or a new
+  lightweight scheduler) queries auth-service's internal endpoint for recently
+  registered users who do not have 2FA enabled and have not already received the
+  recommendation, then creates the notification.</li>
+<li>Alternatively, the notification can be created synchronously during the registration
+  flow by having auth-service expose an internal endpoint that notification-service
+  polls, or by notification-service checking on the user's first notification-center
+  access. The simplest option for v1: notification-service runs a periodic check
+  (e.g., every 15 minutes) for users registered in the last 24 hours with
+  <code>two_factor_enabled = false</code> and no existing SECURITY_RECOMMENDATION notification
+  for that user.</li>
+</ul>
+<p>For v1, we choose the scheduler approach in notification-service, reusing its existing
+<code>@Scheduled</code> infrastructure and auth-service internal endpoint pattern.</p>
+<h3 id="10-migration-numbers">10. Migration numbers<a class="headerlink" href="#10-migration-numbers" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>024-auth-2fa-totp.sql</strong>: <code>auth.totp_secret</code>, <code>auth.two_factor_challenge</code>,
+  <code>auth.totp_backup_code</code> tables, plus <code>ALTER TABLE auth.user ADD COLUMN
+  two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE</code>.</li>
+<li><strong>047-notification-security-recommendation-type.sql</strong>: no DDL needed (the
+  <code>notification.notifications.type</code> column is VARCHAR(50), not an enum type, so
+  adding a new type value requires no migration). This migration number is reserved
+  but the file may be a no-op comment documenting the new type value. If notification
+  preferences gain a <code>securityRecommendation</code> toggle, the schema change goes here.</li>
+</ul>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Positive:</strong> users gain TOTP-based second factor, significantly reducing account
+  takeover risk from compromised passwords. Backup codes prevent lockout. The two-step
+  login is backward-compatible for non-2FA users.</li>
+<li><strong>Positive:</strong> encrypted-at-rest TOTP secrets protect against database-level breaches.</li>
+<li><strong>Negative / cost:</strong> three new tables in the auth schema, a new encryption key to
+  manage (<code>TOTP_ENCRYPTION_KEY</code> env var), and additional complexity in the login flow.</li>
+<li><strong>Negative / cost:</strong> the login response shape becomes polymorphic (either full login
+  or 2FA challenge). The UI must handle both cases.</li>
+<li><strong>Follow-ups:</strong> the TOTP encryption key must be provisioned via <code>.env</code> /
+  <code>TOTP_ENCRYPTION_KEY</code> for compose deployments. Key rotation strategy is out of scope
+  for v1 but should be addressed in a future ADR. Rate limiting on <code>POST /auth/login/2fa</code>
+  (brute-force protection for 6-digit codes) should be implemented.</li>
+</ul>
+<h2 id="alternatives-considered">Alternatives considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
+<ul>
+<li>
+<p><strong>TOTP columns on auth.user</strong> (encrypted_secret, totp_verified_at added directly to
+  the user table): rejected because it couples TOTP lifecycle to the user row, bloats
+  the frequently-read user table, and makes cleanup on 2FA disable messier.</p>
+</li>
+<li>
+<p><strong>JWT-based 2FA challenge token</strong> (sign a short-lived JWT with a <code>2fa-pending</code> claim
+  instead of storing a challenge in the DB): rejected because the token must be
+  single-use (consumed after successful 2FA verification), and JWTs cannot be revoked
+  or marked consumed without server-side state anyway. A simple DB row is more honest
+  about the statefulness.</p>
+</li>
+<li>
+<p><strong>Email-based 2FA</strong> (reuse the existing VerificationCode mechanism with a new action
+  type): rejected because TOTP is device-bound and time-based, fundamentally different
+  from email codes. Conflating them would complicate the VerificationCode domain entity
+  and confuse the user experience. Email-based 2FA is also weaker (email account
+  compromise defeats it).</p>
+</li>
+<li>
+<p><strong>WebAuthn / passkeys</strong>: considered as a future enhancement but rejected for v1 due
+  to higher implementation complexity and browser compatibility requirements. Can be
+  added later as a parallel second-factor option.</p>
+</li>
+<li>
+<p><strong>Auth-service pushes notification directly</strong> (auth-service gains an outbound REST
+  client to notification-service): rejected because auth-service currently has no
+  outbound clients, and adding one creates a circular dependency risk. The
+  notification-service scheduler approach reuses existing infrastructure.</p>
+</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "content.code.copy", "content.code.annotate", "search.suggest", "search.highlight", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

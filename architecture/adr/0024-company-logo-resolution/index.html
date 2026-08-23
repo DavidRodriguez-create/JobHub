@@ -1,0 +1,1680 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-service job-tracking platform — architecture, development & API reference.">
+      
+      
+      
+        <link rel="canonical" href="https://davidrodriguez-create.github.io/JobHub/architecture/adr/0024-company-logo-resolution/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>ADR 0024: Company logo resolution: job-service derives it, crawler-service is not touched - JobHub</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#adr-0024-company-logo-resolution-job-service-derives-it-crawler-service-is-not-touched" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="JobHub" class="md-header__button md-logo" aria-label="JobHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JobHub
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              ADR 0024: Company logo resolution: job-service derives it, crawler-service is not touched
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DavidRodriguez-create/JobHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidRodriguez-create/JobHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../development/local-setup/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../services/crawler/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Services
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../api/auth/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../deployment/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Deployment
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="JobHub" class="md-nav__button md-logo" aria-label="JobHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    JobHub
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DavidRodriguez-create/JobHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidRodriguez-create/JobHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hexagonal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hexagonal (Ports & Adapters)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../clean/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clean (Concentric layers)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/local-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/adding-a-feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding a feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/docs-site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/crawler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    crawler-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/job/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    auth-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    application-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/notification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notification-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    auth-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/job/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    application-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/notification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notification-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#revision-2026-07-25-curated-own-site-icons-runtime-derivation-dropped-451" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Revision (2026-07-25): curated own-site icons, runtime derivation dropped (#451)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d1-write-path-job-service-resolves-the-logo-itself-in-its-existing-reconciler-crawler-service-is-not-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D1. Write path: job-service resolves the logo itself, in its existing reconciler. crawler-service is NOT changed.
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d2-logo-source-per-ats-none-derive-uniformly-from-the-company-domain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D2. Logo source per ATS: none. Derive uniformly from the company domain.
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d3-manual-edit-guard-two-enforcement-points-both-structural" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D3. Manual-edit guard: two enforcement points, both structural.
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d4-backfill-owned-by-job-service-447-one-idempotent-dbinit-migration-number-052" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D4. Backfill: owned by job-service (#447), one idempotent db/init migration, number 052.
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d5-migration-ranges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D5. Migration ranges.
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d6-contract-companyinfologourl-stays-existing-description-clarified-no-new-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D6. Contract: CompanyInfo.logoUrl stays existing; description clarified, no new surface.
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-considered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives considered
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="adr-0024-company-logo-resolution-job-service-derives-it-crawler-service-is-not-touched">ADR 0024: Company logo resolution: job-service derives it, crawler-service is not touched<a class="headerlink" href="#adr-0024-company-logo-resolution-job-service-derives-it-crawler-service-is-not-touched" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Revised (2026-07-25): the runtime derivation below is dropped in favour of
+  curated own-site icons. See "Revision" immediately below; the original decision is kept
+  verbatim underneath as the record of what was tried and why it changed.</li>
+<li><strong>Date:</strong> 2026-07-24 (original); 2026-07-25 (revision)</li>
+<li><strong>Deciders:</strong> jobhub-architect (David R H)</li>
+<li><strong>Affects:</strong> job-service (write path + backfill), api-contracts (<code>job-service.yaml</code>,
+  <code>CompanyInfo.logoUrl</code> description clarified, status unchanged), db/init (<code>052</code>), JobHub-ui
+  (fallback chip already exists), crawler-service (explicitly no change), application-service
+  and notification-service (no change).</li>
+</ul>
+<h2 id="revision-2026-07-25-curated-own-site-icons-runtime-derivation-dropped-451">Revision (2026-07-25): curated own-site icons, runtime derivation dropped (#451)<a class="headerlink" href="#revision-2026-07-25-curated-own-site-icons-runtime-derivation-dropped-451" title="Permanent link">&para;</a></h2>
+<p>The original decision (D1/D2/D4) had job-service <strong>derive</strong> a best-effort logo URL from the
+company slug and a configured logo CDN (<code>logo.clearbit.com/{compact-slug}.com</code>) on the insert
+branch of the reconciler, with <code>db/init/052</code> doing the same in SQL. That is reversed for two
+reasons found after acceptance:</p>
+<ul>
+<li><strong>The chosen CDN is gone.</strong> The Clearbit Logo API was discontinued on <strong>2025-12-01</strong>, so
+  every derived <code>logo.clearbit.com/...</code> URL now 404s. The feature shipped dead.</li>
+<li><strong>The slug guess was wrong for many companies.</strong> <code>datadog</code> derives <code>datadog.com</code>, but the
+  real domain is <code>datadoghq.com</code>; the same class of miss recurs across the seed. A best-effort
+  guess against a domain we never verified is exactly the failure mode the maintainer rejected.</li>
+</ul>
+<p><strong>Revised decision: logos are hardcoded, not derived, and point at each company's own-site
+icon</strong> (its <code>favicon.ico</code> / <code>apple-touch-icon.png</code>). No third-party logo API, no runtime
+derivation, no downloads, no logo hosting, no licensing surface.</p>
+<ul>
+<li><strong>Write path.</strong> <code>CompanyResolutionService</code> inserts a brand-new company with a <strong>null</strong>
+  <code>logo_url</code> (<code>domain/model/CompanyLogo</code> and the two <code>job.company.logo.*</code> config keys are
+  deleted). New/uncurated companies render the UI initials chip.</li>
+<li><strong>Backfill.</strong> <code>db/init/052</code> becomes a <strong>curated</strong> map of <code>company_name</code> to own-site icon URL,
+  each entry <strong>verified to return a real image (HTTP 200)</strong> before inclusion. It is keyed
+  through a byte-for-byte copy of 051's slug mirror (so keys land on the exact stored slug),
+  and keeps the same guard (<code>WHERE logo_url IS NULL AND manually_edited = false</code>) and
+  idempotency. 138 companies are curated in this pass; the ~60 that could not be auto-verified
+  (mostly large sites that bot-block the probe) stay null.</li>
+<li><strong>Filling the rest.</strong> Uncurated companies, and any brand-new company that appears later, are
+  filled by an <strong>admin</strong> via the company-edit screen. That makes this <strong>depend on and sequence
+  before #430 (US 4), which is the build-next story</strong>; #431 (US 5) then surfaces the still-sparse
+  companies. D3 (manual-edit guard) and D5 (crawler-service unchanged) are unaffected. D6 stands
+  except the contract description now says "curated own-site icon", not "derived".</li>
+</ul>
+<p><strong>Superseded by this revision:</strong> D1 (derive in the reconciler), D2 (uniform CDN derivation),
+D4's derivation formula (the migration is now a curated map, not a SQL mirror of a derivation).
+Everything else in the original decision below still holds.</p>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
+<p>Story #429 (sub-issue #443), parent #426, US 3 of 5. US 2 (#428, ADR 0023) already made company
+a first-class entity: <code>db/init/051-job-company.sql</code> created <code>crawler.company</code> with <code>logo_url</code>,
+<code>source</code>, <code>manually_edited</code>, linked <code>crawler.pull_target.company_id</code>, and stood up a job-service
+reconciler (<code>CompanyResolutionScheduler</code> to <code>CompanyResolutionService</code>, ADR 0023 D5) that resolves
+each pull target to a stored company row. Every logo plumbing exists end to end, yet every
+<code>crawler.company.logo_url</code> is null: <code>db/seeds/011-crawler-seeds.sql</code> sets <code>company_logo_url</code> in
+zero rows. The visual half of #426 is therefore blank.</p>
+<p>Binding constraints, not reopened here:</p>
+<ul>
+<li><strong>ADR 0023 D1: job-service is the sole writer of <code>crawler.company</code>.</strong> crawler-service must not
+  write company rows. Any logo the crawler could produce would still have to cross to job-service.</li>
+<li><strong>ADR 0023 D5: crawler-service was deliberately left unchanged</strong>, with a documented reopen
+  trigger: "Revisit when a source starts returning per-posting employer data."</li>
+<li><strong>Manual edits win (US 4, #430).</strong> A crawl must never overwrite a company whose
+  <code>manually_edited = true</code>.</li>
+<li><strong>No new production seam that exists only for tests</strong> (<code>CLAUDE.md</code>; the "no production code for
+  testing" rule). The logo derivation must be a pure function taking its inputs as parameters.</li>
+<li>job-service is <strong>Hexagonal</strong> and stays so: this is a mechanistic extension of an existing
+  reconciler and one backfill, no new invariant-heavy domain behaviour.</li>
+</ul>
+<p><strong>The decisive finding: no ATS the crawler already calls exposes a logo, and none exposes the
+company's own web domain.</strong> Verified live on 2026-07-24 against the exact endpoints the source
+clients use, plus their board/company endpoints:</p>
+<table>
+<thead>
+<tr>
+<th>ATS</th>
+<th>Endpoint the client calls</th>
+<th>Logo field?</th>
+<th>Company domain?</th>
+<th>URLs it returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Greenhouse</td>
+<td><code>boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true</code> (+ <code>/boards/{token}</code> returns only <code>name</code>, empty <code>content</code>)</td>
+<td>none</td>
+<td>none</td>
+<td><code>boards.greenhouse.io/{token}/...</code> (ATS-hosted)</td>
+</tr>
+<tr>
+<td>Lever</td>
+<td><code>api.lever.co/v0/postings/{token}?mode=json</code></td>
+<td>none</td>
+<td>none</td>
+<td><code>jobs.lever.co/{token}/...</code> (ATS-hosted)</td>
+</tr>
+<tr>
+<td>SmartRecruiters</td>
+<td><code>api.smartrecruiters.com/v1/companies/{id}/postings</code> (posting <code>company</code> = <code>{identifier, name}</code> only)</td>
+<td>none</td>
+<td>none</td>
+<td><code>jobs.smartrecruiters.com/{id}/...</code> (ATS-hosted)</td>
+</tr>
+</tbody>
+</table>
+<p>The crawler's source clients (<code>GreenhouseJobSourceClient</code>, <code>LeverJobSourceClient</code>,
+<code>SmartRecruitersJobSourceClient</code>) parse only job fields; none reads a logo or a career site that is
+the company's own domain (all posting URLs are ATS-branded, so a favicon of them is the ATS logo,
+not the employer's). The story's premise that each ATS "returns a company logo or a career-site URL
+we can derive one from" does not hold against the live APIs. So a logo is <strong>derived</strong>, not fetched
+from the source. ADR 0023 D4 already anticipated exactly this by wording the freeze "logo derived
+in #429".</p>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<h3 id="d1-write-path-job-service-resolves-the-logo-itself-in-its-existing-reconciler-crawler-service-is-not-changed">D1. Write path: job-service resolves the logo itself, in its existing reconciler. crawler-service is NOT changed.<a class="headerlink" href="#d1-write-path-job-service-resolves-the-logo-itself-in-its-existing-reconciler-crawler-service-is-not-changed" title="Permanent link">&para;</a></h3>
+<p>We will have <strong>job-service</strong> derive the logo, inside the <strong>existing</strong> <code>CompanyResolutionService</code>
+(ADR 0023 D5), which is already the sole writer of <code>crawler.company</code> and already holds everything
+the derivation needs (<code>pull_target.company_name</code>, the computed slug). There is <strong>no crawler change,
+no new outbound HTTP call, and no new internal <code>X-Service-Key</code> endpoint.</strong></p>
+<p>This is the "job-service resolving it itself" option, chosen because the alternatives are strictly
+worse given the finding above: the crawler has no logo to hand over (it would have to make a <em>new</em>
+external call to a logo service that it is told not to add), and it cannot write <code>crawler.company</code>
+(ADR 0023 D1), so it would additionally need a new internal push endpoint on job-service. Deriving
+in job-service's existing reconciler removes all three moving parts.</p>
+<p>Concretely (job-service, Hexagonal):</p>
+<ul>
+<li>New pure domain function <code>domain/model/CompanyLogo.java</code>,
+  <code>static Optional&lt;String&gt; deriveUrl(String slug, String logoCdnBaseUrl)</code>. Pure, no CDI, no clock,
+  inputs as parameters. It maps the company slug to a candidate web domain (strip separators,
+  append the configured TLD, default <code>.com</code>) and formats the configured logo-CDN URL template.
+  For example <code>stripe</code> to <code>https://logo.clearbit.com/stripe.com</code>,
+  <code>delivery-hero</code> to <code>https://logo.clearbit.com/deliveryhero.com</code>.</li>
+<li><code>CompanyResolutionService.resolvePending()</code> sets <code>logoUrl</code> on the <code>Company</code> it builds <strong>only on
+  the insert branch</strong> (<code>upsertBySlug</code>), so a newly appearing pull target's company is born with a
+  best-effort logo. It never updates an existing company row, so it cannot overwrite anything.</li>
+<li>Config (job-service <code>application.properties</code>, sensible defaults):
+  <code>job.company.logo.cdn-base=https://logo.clearbit.com/</code> and <code>job.company.logo.tld=com</code>. Making the
+  CDN a config value means swapping providers (see D4 risk) is an ops change, not a contract change.</li>
+</ul>
+<h3 id="d2-logo-source-per-ats-none-derive-uniformly-from-the-company-domain">D2. Logo source per ATS: none. Derive uniformly from the company domain.<a class="headerlink" href="#d2-logo-source-per-ats-none-derive-uniformly-from-the-company-domain" title="Permanent link">&para;</a></h3>
+<p>There is no per-ATS logo field, so there is no per-ATS branch. The same deterministic derivation
+(slug to candidate domain to logo-CDN URL) applies to Greenhouse, Lever, SmartRecruiters and every
+other source. This is the honest, evidence-based answer to "which field per ATS": the field does
+not exist on any of them, so uniform domain derivation is the design.</p>
+<h3 id="d3-manual-edit-guard-two-enforcement-points-both-structural">D3. Manual-edit guard: two enforcement points, both structural.<a class="headerlink" href="#d3-manual-edit-guard-two-enforcement-points-both-structural" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Crawl / reconcile path.</strong> The reconciler only ever <strong>inserts</strong> a company (via <code>upsertBySlug</code>,
+  <code>INSERT ... ON CONFLICT (slug) DO NOTHING</code>); it performs no <code>UPDATE</code> of an existing company. It
+  therefore cannot overwrite a <code>manually_edited = true</code> row by construction. If a future story adds
+  a logo-<em>refresh</em> <code>UPDATE</code> on existing companies, that statement MUST carry
+  <code>WHERE manually_edited = false</code>; this is recorded as a standing rule.</li>
+<li><strong>Backfill path.</strong> The backfill <code>UPDATE</code> (D4) carries
+  <code>WHERE logo_url IS NULL AND manually_edited = false</code>, so it skips both manual rows and any row
+  that already has a logo. This is where the guard is enforced today, in SQL.</li>
+</ul>
+<h3 id="d4-backfill-owned-by-job-service-447-one-idempotent-dbinit-migration-number-052">D4. Backfill: owned by job-service (#447), one idempotent <code>db/init</code> migration, number 052.<a class="headerlink" href="#d4-backfill-owned-by-job-service-447-one-idempotent-dbinit-migration-number-052" title="Permanent link">&para;</a></h3>
+<p>We will add <strong><code>db/init/052-company-logo-backfill.sql</code></strong>, owned by job-service (ticket #447). It:</p>
+<ol>
+<li>Sets <code>logo_url</code> on <code>crawler.company</code> for the ~150 existing rows using a <strong>SQL mirror</strong> of the D1
+   derivation (compact the slug, append the TLD, format the CDN URL), so the historical companies
+   get logos without waiting a full reconciler cycle. Same pattern, and same "Java stays canonical"
+   caveat, as the 051 slug mirror: the reconciler only touches NULL rows, so any drift can at worst
+   give a future company a slightly-wrong logo URL, never lose or corrupt data.</li>
+<li>Guards with <code>WHERE logo_url IS NULL AND manually_edited = false</code> (D3), which also makes it
+   <strong>idempotent and safe to re-run</strong>: a second run matches nothing because the first run set the
+   URLs. It never touches manual rows.</li>
+<li>Ends with a verification <code>SELECT</code> of <code>(total, with_logo)</code> counts so the #437-style devops check
+   is mechanical.</li>
+<li>Needs <strong>no new grant</strong>: job_user already has <code>UPDATE ON crawler.company</code> from 051.</li>
+<li>Must be mounted by hand in both <code>podman-compose.yml</code> and <code>podman-compose.native.yml</code> and added
+   to the <code>CLAUDE.md</code> mount list (they drift; missed on #336 and #336-era stories).</li>
+</ol>
+<p>No <code>db/init-users.sh</code> change, no new role, schema, password or <code>.env</code> key.</p>
+<h3 id="d5-migration-ranges">D5. Migration ranges.<a class="headerlink" href="#d5-migration-ranges" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>job-service (#447): <code>052</code></strong> (this backfill). <code>053</code> reserved for job-service if the reconciler
+  change needs a follow-up migration.</li>
+<li><strong>crawler-service (#446): none.</strong> crawler-service has no DB change and no code change under this
+  decision (D1), consistent with ADR 0023 D5's "crawler is not changed" until an aggregator source
+  appears. This is not that trigger.</li>
+</ul>
+<h3 id="d6-contract-companyinfologourl-stays-existing-description-clarified-no-new-surface">D6. Contract: <code>CompanyInfo.logoUrl</code> stays <code>existing</code>; description clarified, no new surface.<a class="headerlink" href="#d6-contract-companyinfologourl-stays-existing-description-clarified-no-new-surface" title="Permanent link">&para;</a></h3>
+<p><code>logoUrl</code> is already frozen <code>x-implementation-status: existing</code> on <code>CompanyInfo</code>
+(<code>api-contracts/.../job-service.yaml</code>). No new operation, no new model, no internal endpoint is
+introduced. The only spec edit is to the <code>logoUrl</code> <strong>description</strong>, to record that the value is a
+best-effort derived URL that may 404 and that the client degrades to its fallback chip on a broken
+image. <code>BACKEND_GAPS.md</code> availability is unchanged (<code>logoUrl</code> was already exposed, merely null).</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Positive.</strong> Zero blast radius outside job-service: no crawler change, no new HTTP call, no new
+  internal endpoint, no contract-shape change, no new DB grant/role. The write path stays inside the
+  single ADR-0023 owner of <code>crawler.company</code>.</li>
+<li><strong>Positive.</strong> The manual-edit guard is structural, not merely a runtime check: the reconciler
+  physically cannot overwrite (insert-only), and the backfill's <code>WHERE</code> clause skips manual rows.</li>
+<li><strong>Positive.</strong> Acceptance is met by construction: the backfill gives the seeded majority a logo
+  immediately; new companies get one at resolution; misses degrade to the existing <code>CoLogo</code> initials
+  chip (<code>JobHub-ui/src/components/ui.jsx</code>), which already renders on image error.</li>
+<li><strong>Cost / risk.</strong> The derived URL is <strong>unverified</strong>, so a share of companies get a <code>logoUrl</code> that
+  404s (<code>datadog</code> to <code>datadog.com</code> misses <code>datadoghq.com</code>). This is accepted: the story blesses a
+  best-effort URL plus graceful UI fallback and puts URL hosting/verification out of scope. It does
+  weaken the contract's "null means no logo" to "null means no derivable domain"; the spec text is
+  updated to say so.</li>
+<li><strong>Cost / risk.</strong> <strong>Hotlinking + provider dependency.</strong> We reference a third-party logo CDN
+  (Clearbit Logo API) directly. Clearbit's free logo API has an uncertain future post-HubSpot
+  acquisition. Mitigated by making the CDN base a config value (D1): DuckDuckGo
+  (<code>icons.duckduckgo.com/ip3/{domain}.ico</code>) or Google favicon
+  (<code>www.google.com/s2/favicons?domain={domain}&amp;sz=128</code>) can replace it without a code or contract
+  change. Google favicon returns a generic globe on miss (never 404s), so it is a worse fit for the
+  fallback rule and is the second choice, not the first. Self-hosting/proxying logos is out of scope
+  (story #429) and a candidate future ADR.</li>
+<li><strong>Cost.</strong> The derivation rule now exists twice for one migration (Java in the reconciler, SQL in
+  the backfill), the same duplication 051 already carries. Contained by "the reconciler only touches
+  NULL company_id" and called out in the migration header.</li>
+<li><strong>Orchestration consequence.</strong> Under D1/D5, <strong>build ticket #446 (crawler-service) has no work</strong>:
+  no code, no migration. Its scope folds entirely into #447. This is surfaced to the orchestrator
+  to close or repurpose #446; the architect does not close tickets.</li>
+</ul>
+<h2 id="alternatives-considered">Alternatives considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Crawler resolves the logo at crawl time and pushes it to job-service.</strong> Rejected: the live ATS
+  APIs carry no logo and no company domain (table above), so the crawler would have to make a <em>new</em>
+  external call (the story says do not) and, because it cannot write <code>crawler.company</code> (ADR 0023
+  D1), would need a <em>new</em> internal push endpoint on job-service. Three new moving parts for a value
+  job-service can derive itself from data it already holds.</li>
+<li><strong>A new internal <code>X-Service-Key</code> endpoint on job-service that the crawler calls with the logo.</strong>
+  Rejected for the same reason plus it widens the frozen contract surface for zero gain over D1.</li>
+<li><strong>Reconciler UPDATEs existing companies to refresh logos.</strong> Deferred: not needed for this story
+  (the backfill covers existing rows once), and it would introduce an <code>UPDATE</code> path that must carry
+  the manual-edit <code>WHERE</code> guard. Insert-only keeps the guard structural.</li>
+<li><strong>Google/DuckDuckGo favicon service instead of a logo CDN.</strong> Kept as the documented config-swap
+  fallback, not the default: Google favicon never 404s (returns a globe), which defeats the
+  "dead link degrades to the fallback chip" acceptance.</li>
+<li><strong>Self-host / proxy logos.</strong> Out of scope per story #429 (hosting is explicitly excluded);
+  revisit as its own ADR if hotlinking or provider deprecation forces it.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "content.code.copy", "content.code.annotate", "search.suggest", "search.highlight", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

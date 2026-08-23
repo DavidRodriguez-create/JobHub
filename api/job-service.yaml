@@ -1,0 +1,2011 @@
+openapi: 3.0.3
+info:
+  title: JobHub — Job Service
+  version: 1.0.0
+  description: |
+    REST API for browsing and searching job postings, bookmarking jobs, and
+    managing saved search filter presets.
+
+servers:
+  - url: /
+    description: Path-prefixed via Vite dev proxy (`/jobs → localhost:8081`) and nginx
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Jobs
+    description: Browse and search job postings
+  - name: Saved Jobs
+    description: Bookmark jobs per authenticated user
+  - name: Saved Filters
+    description: Persist named search filter presets per authenticated user (max 5)
+  - name: Admin
+    description: |
+      Admin-only operations. Restricted to accounts carrying the `admin` JWT group
+      (granted at token-issue time to emails in the deployment allowlist; see ADR 0003).
+      job-service is the internet-exposed host for the crawl/enrichment trigger because
+      crawler-service has no published port and no JWT — the trigger is recorded as a row
+      in `crawler.trigger_request` (written cross-schema, exactly like saved jobs) and the
+      crawler picks it up on its next poll.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    # ── Existing response schemas ──────────────────────────────────────────────
+
+    JobPostResponse:
+      x-implementation-status: existing
+      type: object
+      required: [id, title, url, firstSeenAt, lastSeenAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: Canonical URL of the job posting
+        description:
+          type: string
+          description: Full job description (HTML or plain text)
+        location:
+          type: string
+          description: |
+            Primary location of the posting, e.g. "Barcelona, Spain" or "Remote".
+            Backward-compatible single-string view: it is the posting's primary
+            (`is_primary`) opening, composed as `city + ", " + country` (or the
+            non-blank part alone). Always present when the posting has any location.
+            For the full set of openings across countries/cities, read `locations`.
+        locations:
+          x-implementation-status: existing
+          type: array
+          items:
+            $ref: '#/components/schemas/JobLocation'
+          description: |
+            All openings for this posting, one entry per (country, city) pair, in
+            display order with the primary opening first. A posting with a single
+            opening returns exactly one entry whose composed string equals `location`.
+            Empty/absent only when the posting has no location data at all.
+        firstSeenAt:
+          type: string
+          format: date-time
+          description: When the crawler first discovered this posting; used as "posted date"
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: Last time the crawler confirmed the posting was still live
+
+        company:
+          description: |
+            The stored company entity behind this posting, fully populated including
+            `description` (this is the detail projection). Null only when no company
+            can be resolved. Unknown properties are null, never "" or "-".
+          allOf:
+            - $ref: '#/components/schemas/CompanyInfo'
+
+        compensationMin:
+          type: integer
+          format: int32
+          description: Minimum annual compensation (local currency units)
+
+        compensationMax:
+          type: integer
+          format: int32
+          description: Maximum annual compensation (local currency units)
+
+        language:
+          type: array
+          items:
+            type: string
+          description: "Languages used in this role (e.g. [\"English\", \"Spanish\"])"
+
+        employmentType:
+          type: string
+          enum: [full-time, part-time, contract, freelance, internship]
+          description: Employment type
+
+        careerLevel:
+          type: string
+          enum: [internship, junior, mid, senior, lead, principal, manager, director]
+          description: Seniority / career level (LLM-extracted from the posting)
+
+        source:
+          type: string
+          description: "Source board or ATS name, e.g. Greenhouse, Lever, LinkedIn"
+
+        requirements:
+          type: array
+          items:
+            type: string
+          description: Structured list of role requirements
+
+    JobPostSummary:
+      x-implementation-status: existing
+      description: |
+        Slim list-view projection of a job posting, returned by GET /jobs (the search
+        list). It carries every field the results list renders but deliberately omits the
+        heavy `description` and `requirements` fields to keep list responses small. To read
+        the full body (including `description` and `requirements`), fetch the single posting
+        via GET /jobs/{id}, which returns the complete JobPostResponse.
+      type: object
+      required: [id, title, url, firstSeenAt, lastSeenAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: Canonical URL of the job posting
+        location:
+          type: string
+          description: |
+            Primary location of the posting, e.g. "Barcelona, Spain" or "Remote". The
+            backward-compatible single-string view of the posting's primary opening. See
+            `locations` for the full set of openings.
+        locations:
+          x-implementation-status: existing
+          type: array
+          items:
+            $ref: '#/components/schemas/JobLocation'
+          description: |
+            All openings for this posting, one entry per (country, city) pair, primary first.
+            Empty/absent only when the posting has no location data at all.
+        firstSeenAt:
+          type: string
+          format: date-time
+          description: When the crawler first discovered this posting; used as "posted date"
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: Last time the crawler confirmed the posting was still live
+        company:
+          description: |
+            The stored company entity behind this posting, card projection: every
+            property is populated except `description`, which is left null here to
+            keep list payloads small (story #330). Fetch GET /jobs/{id} for it.
+          allOf:
+            - $ref: '#/components/schemas/CompanyInfo'
+        compensationMin:
+          type: integer
+          format: int32
+          description: Minimum annual compensation (local currency units)
+        compensationMax:
+          type: integer
+          format: int32
+          description: Maximum annual compensation (local currency units)
+        language:
+          type: array
+          items:
+            type: string
+          description: "Languages used in this role (e.g. [\"English\", \"Spanish\"])"
+        employmentType:
+          type: string
+          enum: [full-time, part-time, contract, freelance, internship]
+          description: Employment type
+        careerLevel:
+          type: string
+          enum: [internship, junior, mid, senior, lead, principal, manager, director]
+          description: Seniority / career level (LLM-extracted from the posting)
+        source:
+          type: string
+          description: "Source board or ATS name, e.g. Greenhouse, Lever, LinkedIn"
+
+    CompanyInfo:
+      x-implementation-status: existing
+      description: |
+        The company attached to a job post, read from the stored company entity
+        (story #428, ADR 0023). This shape is frozen: it already carries the fields
+        that stories #429 (logos), #430 (admin enrichment) and #431 (sparse-company
+        alerting) will populate, so those stories do not have to reopen it.
+
+        Null rules, which the whole contract depends on:
+          - `name` is always present when the `company` object itself is present.
+          - Every other property is nullable. An unknown value is serialised as
+            `null`, never as an empty string and never as a placeholder such as "-".
+          - A client renders a property only when it is non-null; it omits the field
+            otherwise instead of showing filler.
+          - `company` itself is null only for a posting with no resolvable company.
+
+        Projection rule: `GET /jobs` (JobPostSummary, the results list) leaves the
+        heavy `description` null to keep card payloads small, mirroring how the
+        summary drops the job's own description/requirements (story #330).
+        `GET /jobs/{id}` (JobPostResponse) populates it. Every other property is
+        populated identically on both projections, so a client that merges a list
+        entry and a detail fetch must upgrade, never downgrade, what it already holds.
+      type: object
+      properties:
+        id:
+          x-implementation-status: planned
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            Stable identifier of the stored company row. Null while the posting's
+            company has not been resolved to a stored row yet (the response then
+            falls back to the crawl-time name/logo carried on the pull target).
+            This, not `name`, is the key admin operations address (story #430).
+        slug:
+          x-implementation-status: planned
+          type: string
+          nullable: true
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          maxLength: 120
+          description: |
+            Normalised identity key of the company: the value that makes the same
+            employer arriving from two different ATS sources collapse onto one
+            record. For example "Nestle S.A.", "NESTLE SA" and "Nestlé" all resolve
+            to `nestle`. Clients may use it as a stable grouping key instead of
+            deriving one from `name`. Null while the company is unresolved.
+        name:
+          x-implementation-status: existing
+          type: string
+          description: |
+            Display name of the company, as curated (story #430) or as captured at
+            crawl time. Always present when `company` is present.
+        logoUrl:
+          x-implementation-status: existing
+          type: string
+          format: uri
+          nullable: true
+          description: |
+            Absolute URL of the company logo. Best-effort: story #429 (ADR 0024)
+            has job-service derive this deterministically from the company's web
+            domain via a public logo CDN, inside the same reconciler that resolves
+            the company (no ATS field carries a logo, verified live for Greenhouse,
+            Lever and SmartRecruiters, so it is derived, not fetched from the source).
+            Because the URL is unverified, it may 404 or fail to load; a client MUST
+            treat a broken image as "no logo" and render its deterministic fallback
+            chip (initials + stable colour from the slug), never a broken-image icon.
+            Null only when even a domain cannot be derived (the same case in which no
+            company row exists and the response falls back to the crawl-time name).
+        website:
+          x-implementation-status: planned
+          type: string
+          format: uri
+          nullable: true
+          description: Absolute URL of the company's own site, e.g. "https://stripe.com". Null when unknown.
+        industry:
+          x-implementation-status: planned
+          type: string
+          nullable: true
+          description: |
+            Free-text industry label, e.g. "Fintech" or "Healthcare". Deliberately not
+            an enum: values arrive from heterogeneous sources and from admin edits, and
+            freezing a closed list here would break every consumer the first time a new
+            value appears. Null when unknown.
+        size:
+          x-implementation-status: planned
+          type: string
+          nullable: true
+          description: |
+            Headcount bucket as a display string. Not an enum, for the same reason as
+            `industry`, but producers should stay inside this vocabulary so the UI can
+            group on it: "1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000",
+            "5001-10000", "10000+". Null when unknown.
+        headquarters:
+          x-implementation-status: planned
+          type: string
+          nullable: true
+          description: |
+            Headquarters as a single display string, composed "City, Country" (or the
+            non-blank part alone), matching how a job posting's `location` is composed.
+            Null when unknown. It is not the posting's location and must never be
+            back-filled from one.
+        description:
+          x-implementation-status: planned
+          type: string
+          nullable: true
+          description: |
+            Short prose description of the company, produced by admin enrichment
+            (story #430). Null when unknown, and also null on the JobPostSummary
+            projection (see the projection rule above), so a client must not treat a
+            null here in a list response as "this company has no description".
+        tags:
+          x-implementation-status: planned
+          type: array
+          nullable: true
+          items:
+            type: string
+          description: |
+            Curated free-form labels for the company, e.g. ["remote-first", "b2b"].
+            Frozen into the contract now, but nothing populates it in story #428; it
+            is filled by admin enrichment (story #430). Null when no tags have been
+            curated: the service never emits an empty array, so null and "no tags"
+            are the same state and a client needs no special case for [].
+            Filtering or faceting jobs by tag is explicitly a separate story.
+        manuallyEdited:
+          x-implementation-status: planned
+          type: boolean
+          nullable: true
+          description: |
+            True when an admin has edited this company, which pins the record against
+            being overwritten by a later crawl (story #430). Null while the company is
+            unresolved. Externally visible because it is the only provenance a client
+            can act on: per-field provenance stays internal to job-service.
+        updatedAt:
+          x-implementation-status: planned
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            When the stored company row last changed. Null while the company is
+            unresolved. Lets a client show data freshness without exposing the
+            internal source bookkeeping.
+
+    CompanyUpdateRequest:
+      x-implementation-status: planned
+      description: |
+        Admin enrichment payload for PUT /jobs/admin/companies/{id} (story #430). It replaces
+        the FULL set of admin-editable fields on a resolved company in one call: the admin
+        screen loads the company, edits the form, and submits every editable field back.
+        Replacement, not merge: a field sent as null (or omitted, which the generated model
+        also reads as null) CLEARS the stored value to null, so a client that wants to keep a
+        value must echo it back. This makes clearing a wrong value possible and sidesteps the
+        absent-vs-null ambiguity a partial PATCH would carry on a generated Jackson model
+        (rationale in ADR 0025).
+
+        Only these seven fields are editable. Company identity (`id`, `slug`) and `name` are
+        immutable through this endpoint and are ignored if present in the body. Null rules
+        match CompanyInfo: the service stores null for an unknown value, never "" and never a
+        placeholder, and never emits an empty `tags` array (an empty or all-blank array is
+        stored as null).
+      type: object
+      properties:
+        website:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 2048
+          description: Absolute URL of the company's own site, e.g. "https://stripe.com". Null clears it.
+        industry:
+          type: string
+          nullable: true
+          maxLength: 80
+          description: |
+            Free-text industry label, e.g. "Fintech". Not an enum (same reason as CompanyInfo:
+            values arrive from heterogeneous sources and admin edits). Null clears it.
+        size:
+          type: string
+          nullable: true
+          maxLength: 40
+          description: |
+            Headcount bucket as a display string. Not an enum, but producers should stay inside
+            the CompanyInfo vocabulary so the UI can group on it: "1-10", "11-50", "51-200",
+            "201-500", "501-1000", "1001-5000", "5001-10000", "10000+". Null clears it.
+        headquarters:
+          type: string
+          nullable: true
+          maxLength: 120
+          description: |
+            Headquarters as a single "City, Country" display string. Null clears it. It is not
+            the posting's location and must never be back-filled from one (CompanyInfo rule).
+        description:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: Short prose description of the company. Null clears it.
+        tags:
+          type: array
+          nullable: true
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+            pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          description: |
+            Curated lowercase kebab-case labels, e.g. ["remote-first", "b2b"]. Max 20, each 1
+            to 40 chars matching the slug grammar. Duplicates are rejected with 400 (uniqueness
+            is enforced server-side, not via `uniqueItems`, to keep the generated model a List).
+            Null, or an empty array, clears all tags (the service stores null, never []).
+        logoUrl:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 2048
+          description: |
+            Absolute URL of the company logo. Setting it here makes it a manual value that a
+            later crawl or derivation must never overwrite (ADR 0024 guard, enforced at record
+            level via `manuallyEdited`, see ADR 0025). Null clears it back to unknown.
+
+    JobLocation:
+      x-implementation-status: existing
+      description: |
+        A single opening location for a job post: a (country, city) pair. Either part
+        may be absent (a country-only opening, or the special value "Remote" carried in
+        `country`, mirrors how the crawler stores single locations today). `primary`
+        marks the one opening surfaced as the posting's `location` string.
+      type: object
+      properties:
+        country:
+          type: string
+          nullable: true
+          description: Country of this opening, e.g. "Spain". May be "Remote".
+        city:
+          type: string
+          nullable: true
+          description: City of this opening, e.g. "Barcelona". May be "Remote" or absent.
+        primary:
+          type: boolean
+          description: |
+            True for the single primary opening (the one composed into the `location`
+            string). Exactly one location per posting is primary.
+
+    # ── Saved Jobs ───────────────────────────────────────────────────────────
+
+    SavedJobResponse:
+      description: A saved-job bookmark entry. The job ID is available via job.id.
+      type: object
+      required: [savedAt, job]
+      properties:
+        savedAt:
+          type: string
+          format: date-time
+          description: When the user bookmarked this posting
+        job:
+          $ref: '#/components/schemas/JobPostResponse'
+
+    SavedJobPage:
+      description: Paginated result wrapper for saved-job list responses.
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedJobResponse'
+          description: Saved job entries for the requested page
+        page:
+          type: integer
+          description: Zero-based index of the returned page
+        size:
+          type: integer
+          description: Number of items per page as requested
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of bookmarks for this user
+        totalPages:
+          type: integer
+          description: "Total number of pages: ceil(totalElements / size)"
+
+    # ── Saved Filters ──────────────────────────────────────────────────────────
+
+    SavedFilterRequest:
+      description: Payload for creating a named filter preset. Both fields are required.
+      type: object
+      required: [name, filters]
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          description: Human-readable label for the preset
+        filters:
+          $ref: '#/components/schemas/FilterValues'
+
+    SavedFilterPatchRequest:
+      description: Partial update payload for a saved filter preset. Supply only the fields to change.
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          description: New label for the preset
+        filters:
+          $ref: '#/components/schemas/FilterValues'
+
+    SavedFilterResponse:
+      description: A saved filter preset belonging to the authenticated user.
+      type: object
+      required: [id, name, filters, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the preset
+        name:
+          type: string
+          description: Human-readable label for the preset
+        filters:
+          $ref: '#/components/schemas/FilterValues'
+        createdAt:
+          type: string
+          format: date-time
+          description: When the preset was first saved
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the preset was last modified
+
+    FilterValues:
+      description: Serialised job-search filter state. Field names mirror the query parameters of GET /jobs.
+      type: object
+      properties:
+        keyword:
+          type: string
+        location:
+          type: array
+          items:
+            type: string
+          description: "Location strings — country, city+country, or the special value 'Remote'"
+        language:
+          type: array
+          items:
+            type: string
+          description: "Working languages (e.g. [\"English\", \"Spanish\"])"
+        company:
+          type: array
+          items:
+            type: string
+          description: Company names
+        employmentType:
+          type: array
+          items:
+            type: string
+            enum: [full-time, part-time, contract, freelance, internship]
+          description: One or more employment types (multi-select in the UI)
+        careerLevel:
+          type: array
+          items:
+            type: string
+            enum: [internship, junior, mid, senior, lead, principal, manager, director]
+          description: One or more career levels (multi-select in the UI)
+        compensationMin:
+          type: integer
+          description: Minimum annual compensation (local currency units, inclusive)
+        compensationMax:
+          type: integer
+          description: Maximum annual compensation (local currency units, inclusive)
+        postedWithin:
+          type: string
+          enum: [today, 3d, week, month]
+        sort:
+          type: string
+          enum: [newest, oldest, salary-desc, salary-asc]
+          default: newest
+
+    # ── Filter facets ────────────────────────────────────────────────────────
+
+    FacetValue:
+      description: |
+        A distinct filter value and how many postings carry it. The count is computed over
+        the postings matching the active filters for this value's facet group (see
+        `GET /jobs/facets`); with no active filters it is the table-wide count.
+      type: object
+      required: [value, count]
+      properties:
+        value:
+          type: string
+        count:
+          type: integer
+          format: int64
+          description: Number of postings with this value within its facet group's scope.
+
+    JobFacets:
+      description: |
+        Filter values for the job-search controls, each with a posting count, plus the
+        overall compensation range. Used to populate the filter dropdowns so they are not
+        limited to the current result page. Counts are filter-aware (drill-down): see the
+        "exclude own dimension" semantics on `GET /jobs/facets`. With no active filters,
+        every count is the table-wide count and the comp range bounds the whole table.
+      type: object
+      required: [companies, locations, languages, employmentTypes, careerLevels]
+      properties:
+        companies:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetValue'
+          description: Distinct company names, alphabetically ordered. Excludes the `company` filter.
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetValue'
+          description: |
+            Distinct countries across **all** of each posting's openings (primary plus
+            additional-opening child rows), plus the special value "Remote" when any
+            remote openings exist. Excludes the `location` filter.
+
+            A posting is counted once per distinct country it has an opening in, so a post
+            with openings in France and Spain contributes 1 to `France` and 1 to `Spain`.
+            Duplicate openings in the same country for one post are collapsed (counted
+            once), so per-country counts remain "number of postings", not "number of
+            openings". Sums across countries may therefore exceed the total post count.
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetValue'
+          description: Distinct working languages. Excludes the `language` filter.
+        employmentTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetValue'
+          description: Distinct employment types. Excludes the `employmentType` filter.
+        careerLevels:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetValue'
+          description: Distinct career levels. Excludes the `careerLevel` filter.
+        compensationMin:
+          type: integer
+          nullable: true
+          description: |
+            Lowest compensationMin across the in-scope postings (null when none are priced).
+            Excludes the `compensationMin` / `compensationMax` filters.
+        compensationMax:
+          type: integer
+          nullable: true
+          description: |
+            Highest compensationMax across the in-scope postings (null when none are priced).
+            Excludes the `compensationMin` / `compensationMax` filters.
+
+    # ── Pagination wrapper ────────────────────────────────────────────────────
+
+    JobSearchPage:
+      type: object
+      description: Paginated result wrapper for job search responses.
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobPostSummary'
+          description: |
+            Job postings for the requested page, as slim summaries. The heavy
+            `description`/`requirements` fields are omitted here; fetch the full posting via
+            GET /jobs/{id} when the detail view opens.
+        page:
+          type: integer
+          description: Zero-based index of the returned page
+        size:
+          type: integer
+          description: Number of items per page as requested
+        totalElements:
+          type: integer
+          format: int64
+          description: |
+            Total number of results matching the query across all pages.
+
+            Best-effort: exact for small result sets, but a PostgreSQL planner
+            estimate for large result sets (see `countIsEstimate`). When
+            `countIsEstimate` is `true` this value is approximate and may drift
+            from the true count by a few percent; when `false` (or absent) it is
+            exact. Rationale in ADR 0018.
+        totalPages:
+          type: integer
+          description: |
+            Total number of pages: `ceil(totalElements / size)`. Inherits the
+            exactness of `totalElements` — approximate when `countIsEstimate` is
+            `true`. Clients that page to the end should stop on the first empty
+            `content` array rather than trusting `totalPages` as a hard bound.
+        countIsEstimate:
+          type: boolean
+          default: false
+          x-implementation-status: planned
+          description: |
+            `true` when `totalElements`/`totalPages` are PostgreSQL planner
+            estimates rather than an exact `COUNT(*)`. The server returns an
+            exact count for result sets at or below a configured threshold and
+            switches to a planner estimate above it, so counting large filtered
+            result sets (full-text + location predicates) no longer costs more
+            than fetching the page. Optional and additive: when omitted, treat as
+            `false` (exact). See ADR 0018.
+
+    # ── Admin: crawl / enrichment trigger ────────────────────────────────────────
+
+    TriggerKind:
+      x-implementation-status: planned
+      type: string
+      enum: [crawl, enrichment]
+      description: |
+        Which background pass to run. `crawl` pulls the next batch of job-board targets;
+        `enrichment` runs the LLM enrichment pass over postings still awaiting it.
+
+    TriggerStatusValue:
+      x-implementation-status: planned
+      type: string
+      enum: [queued, running, succeeded, failed, cancel_requested, cancelled]
+      description: |
+        Lifecycle of a single trigger request row. `queued` once the admin request is
+        recorded; `running` once the crawler claims it; `succeeded`/`failed` when the pass
+        finishes. `cancel_requested` is a transitional state set by the admin via the cancel
+        endpoint; `cancelled` is the terminal state set by crawler-service when it observes
+        the signal and stops work. A `queued` row that is cancelled skips straight to
+        `cancelled` without ever becoming `running`.
+
+        There is deliberately no `accepted`/`requesting` value (ADR 0032): `queued` already means
+        "accepted, not started yet", and the brief "requesting" phase between the click and the 202
+        is UI-local optimistic state, never persisted. Since ADR 0032 a `queued`/`running` crawl
+        does block the periodic scheduled crawl (automatic yields to manual), and the scheduled
+        pass itself appears here as a row with `origin = scheduled`.
+
+    TriggerOrigin:
+      x-implementation-status: existing
+      type: string
+      enum: [manual, scheduled]
+      description: |
+        Who started the run (story #398, ADR 0032). `manual` is an admin-triggered request recorded
+        by job-service; `scheduled` is crawler-service's own periodic pass, which since ADR 0032
+        also records a `crawler.trigger_request` row so both origins share one active-run lock and
+        one history. Rows created before ADR 0032 read back as `manual`.
+
+    TriggerOutcome:
+      x-implementation-status: existing
+      type: string
+      enum: [completed, no_targets, cancelled, interrupted, failed]
+      description: |
+        Machine-readable end state of a finished run (story #398, ADR 0032). Present only once the
+        run is terminal; `null` while `queued`/`running` and for runs predating ADR 0032. Clients
+        must branch on this rather than parsing `resultSummary`.
+
+        * `completed` : the pass ran and finished normally.
+        * `no_targets` : nothing was eligible to crawl, so no work was done. This is a success, not
+          an error, and the UI must say "no more targets to crawl" rather than "crawled 0 targets".
+        * `cancelled` : stopped cooperatively after an admin cancel (ADR 0006).
+        * `interrupted` : the process shut down mid-run; the row was reaped back to a terminal
+          state on the next startup or by the stale-run sweep.
+        * `failed` : the pass raised an error; see `errorReason`.
+
+    TriggerRequestBody:
+      x-implementation-status: planned
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          $ref: '#/components/schemas/TriggerKind'
+        code:
+          type: string
+          pattern: '^\d{6}$|^[a-zA-Z0-9]{8}$'
+          description: |
+            The triggering admin's own two-factor code: either a 6-digit TOTP code from
+            their authenticator app or an 8-character single-use backup code.
+
+            Required ONLY when the authenticated admin has 2FA enabled on their account
+            (the `twoFactorRequired` flag on `GET /jobs/admin/triggers/status`). Admins
+            with no 2FA enabled fire the trigger directly and omit this field: security is
+            delegated to the admin's own 2FA choice (see ADR 0019). job-service verifies the
+            code against auth-service service-to-service (keyed on the admin's JWT subject)
+            before recording the request. There is no emailed request code and no
+            `verificationId` — that path was removed (ADR 0019 supersedes ADR 0003 section 4).
+
+    TriggerResponse:
+      x-implementation-status: planned
+      type: object
+      required: [id, kind, status, requestedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the recorded trigger request (a `crawler.trigger_request` row).
+        kind:
+          $ref: '#/components/schemas/TriggerKind'
+        status:
+          $ref: '#/components/schemas/TriggerStatusValue'
+          description: Always `queued` on the 202 response; poll status via GET /jobs/admin/triggers/status.
+        requestedAt:
+          type: string
+          format: date-time
+          description: When job-service recorded the request.
+
+    TriggerRunInfo:
+      x-implementation-status: existing
+      type: object
+      description: |
+        Most-recent trigger request for one kind, for the admin status panel. All fields
+        except presence are nullable — `null`/absent run info means "never triggered".
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/TriggerStatusValue'
+        requestedAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        resultSummary:
+          type: string
+          nullable: true
+          description: Short human summary on success (e.g. "crawled 10 targets, 37 new postings").
+        errorReason:
+          type: string
+          nullable: true
+          description: Populated when status is `failed`.
+        origin:
+          $ref: '#/components/schemas/TriggerOrigin'
+        outcome:
+          $ref: '#/components/schemas/TriggerOutcome'
+        progress:
+          $ref: '#/components/schemas/TriggerProgress'
+
+    TriggerProgress:
+      x-implementation-status: planned
+      type: object
+      description: |
+        Live progress of a crawl run, refreshed by crawler-service as the run proceeds
+        (ADR 0029). Present only on `crawl` run info, and only once the run has reported
+        at least one update: it is `null` for `queued` runs that have not started, for
+        `enrichment` runs (which do not report progress), and for runs that predate this
+        feature. Values are a committed snapshot, so a poll may lag reality by up to one
+        crawled target.
+
+        On a terminal run (`succeeded`, `failed`, `cancelled`) the counters remain as the
+        final snapshot but `currentCompany`/`currentSourceType` are cleared to `null`,
+        because nothing is being crawled any more. `resultSummary` stays the authoritative
+        end-of-run text.
+      required: [targetsVisited, newPosts]
+      properties:
+        targetsVisited:
+          type: integer
+          format: int32
+          description: Number of crawl targets fully completed so far in this run.
+        newPosts:
+          type: integer
+          format: int32
+          description: Number of genuinely-new job postings inserted so far in this run.
+        currentCompany:
+          type: string
+          nullable: true
+          description: |
+            Company whose board is being crawled right now, e.g. `Klaviyo`. `null` when no
+            target is in flight (run not started, between targets, or finished).
+        currentSourceType:
+          type: string
+          nullable: true
+          description: Source type of the in-flight target, e.g. `greenhouse`, `lever`, `workday`.
+        lastCompany:
+          type: string
+          nullable: true
+          description: Company of the most recently completed target in this run.
+        lastSourceType:
+          type: string
+          nullable: true
+          description: Source type of the most recently completed target in this run.
+        lastFoundPosts:
+          type: integer
+          format: int32
+          nullable: true
+          description: Postings the source returned for the most recently completed target.
+        lastNewPosts:
+          type: integer
+          format: int32
+          nullable: true
+          description: |
+            Of `lastFoundPosts`, how many were genuinely new. `0` is a normal result and
+            means the board returned nothing we had not already stored.
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            When crawler-service last wrote this snapshot. The UI can use it to show
+            staleness, and to detect a stalled run (a slow target can hold it steady for
+            a minute or more).
+
+    TriggerLastRun:
+      x-implementation-status: existing
+      type: object
+      description: |
+        The most recent FINISHED run of one kind (story #398, ADR 0032), whatever started it.
+        Distinct from `crawl`/`enrichment` in `TriggerStatusResponse`, which describe the most
+        recent request and are therefore unfinished while a pass is in flight: this block is what
+        the admin panel shows as "last crawl: 12 minutes ago, automatic, no more targets to crawl".
+        `null` means no run of that kind has ever finished. Selected as the newest row of that kind
+        in a terminal status (`succeeded`, `failed`, `cancelled`) ordered by `finishedAt`.
+      required: [finishedAt, status, origin]
+      properties:
+        id:
+          type: string
+          format: uuid
+        finishedAt:
+          type: string
+          format: date-time
+          description: When the run reached its terminal state.
+        status:
+          $ref: '#/components/schemas/TriggerStatusValue'
+        outcome:
+          $ref: '#/components/schemas/TriggerOutcome'
+        origin:
+          $ref: '#/components/schemas/TriggerOrigin'
+        resultSummary:
+          type: string
+          nullable: true
+          description: |
+            Short human summary of the outcome, e.g. "crawled 10 targets, 37 new postings" or
+            "no more targets to crawl". Display text only; branch on `outcome`.
+        errorReason:
+          type: string
+          nullable: true
+          description: Populated when `status` is `failed`, including shutdown interruptions.
+
+    TriggerStatusResponse:
+      x-implementation-status: existing
+      type: object
+      required: [triggerEnabled, twoFactorRequired]
+      properties:
+        triggerEnabled:
+          type: boolean
+          description: |
+            Whether triggering is currently enabled by deployment config
+            (`jobhub.admin.trigger.enabled`). When false, POST /jobs/admin/triggers returns
+            403 and the UI should disable the trigger buttons. Reflects the value the running
+            container was started with (see ADR 0003: "reloadable" = change env + recreate).
+        twoFactorRequired:
+          type: boolean
+          description: |
+            Whether the currently authenticated admin has two-factor authentication enabled
+            on their own account, and therefore must supply a `code` (TOTP or backup code) to
+            POST /jobs/admin/triggers. This is a per-caller signal, NOT a deployment flag: it
+            reflects THIS admin's 2FA state, resolved by job-service from auth-service
+            service-to-service (keyed on the admin's JWT subject). When true, the UI must show
+            a code input and require it before firing. When false, the trigger fires directly
+            with no extra step. Replaces the former deployment-wide `codeRequired` flag; the
+            emailed request-code gate is removed (see ADR 0019, which supersedes ADR 0003
+            section 4).
+        crawl:
+          $ref: '#/components/schemas/TriggerRunInfo'
+        enrichment:
+          $ref: '#/components/schemas/TriggerRunInfo'
+        lastCrawlRun:
+          $ref: '#/components/schemas/TriggerLastRun'
+        lastEnrichmentRun:
+          $ref: '#/components/schemas/TriggerLastRun'
+
+    # ── Error ──────────────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error title
+        message:
+          type: string
+          description: Detail explaining what went wrong
+
+paths:
+
+  # ── Job search ──────────────────────────────────────────────────────────────
+
+  /jobs:
+    get:
+      tags: [Jobs]
+      operationId: searchJobs
+      summary: Search and list job postings
+      x-implementation-status: existing
+      description: |
+        Returns a paginated list of job postings matching the supplied filters.
+
+        All filter parameters are optional and combinable. When no results match
+        the query, the response is HTTP 200 with an empty `content` array.
+
+        Pagination is zero-based (`page=0` is the first page). Use `totalPages`
+        from the response body as a guide for when to stop fetching, but note it
+        is best-effort: when `countIsEstimate` is `true`, `totalElements`/`totalPages`
+        are planner estimates, so clients paging to the very end should stop on the
+        first empty `content` array. See ADR 0018.
+      security: []
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+          description: Full-text search across title and description
+        - name: location
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Filter by one or more locations. Each value is a city+country string
+            (`"Barcelona, Spain"`), a country alone (`"Spain"`), or the special
+            value `"Remote"`. Repeated: `?location=Spain&location=Remote`.
+
+            A posting matches when **any** of its openings satisfies **any** supplied
+            value (OR within the filter, OR across the posting's locations). So a post
+            with openings in France and Spain matches `location=Spain`. Each matching
+            post is returned once regardless of how many of its openings match
+            (deduplicated by post id). Matching is case-insensitive against both the
+            primary `city`/`country` and the additional-openings child rows.
+        - name: language
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Filter by one or more working languages (e.g. `"English"`).
+            Repeated: `?language=English&language=Spanish`.
+        - name: company
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Filter by one or more company names.
+            Repeated: `?company=Google&company=Stripe`.
+        - name: employmentType
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [full-time, part-time, contract, freelance, internship]
+          description: |
+            Filter by one or more employment types.
+            Repeated: `?employmentType=full-time&employmentType=contract`.
+        - name: careerLevel
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [internship, junior, mid, senior, lead, principal, manager, director]
+          description: |
+            Filter by one or more career levels.
+            Repeated: `?careerLevel=senior&careerLevel=lead`.
+        - name: compensationMin
+          in: query
+          schema:
+            type: integer
+          description: Minimum annual compensation (local currency units, inclusive)
+        - name: compensationMax
+          in: query
+          schema:
+            type: integer
+          description: Maximum annual compensation (local currency units, inclusive)
+        - name: postedWithin
+          in: query
+          schema:
+            type: string
+            enum: [today, 3d, week, month]
+          description: |
+            Filter by how recently the posting was first discovered. Derived from
+            `firstSeenAt`: `today` = last 24 h, `3d` = last 3 days, `week` = last 7 days,
+            `month` = last 30 days.
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, oldest, salary-desc, salary-asc]
+            default: newest
+          description: |
+            Sort order. `newest` / `oldest` sort by `firstSeenAt`. `salary-desc` /
+            `salary-asc` sort by `compensationMin`; postings without compensation
+            data are ranked last.
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based page index
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+
+      responses:
+        '200':
+          description: Paginated job list. `content` is empty when no postings match the filters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSearchPage'
+        '400':
+          description: |
+            Invalid query parameters — e.g. `page` is negative, `size` exceeds 100,
+            or an enum parameter contains an unrecognised value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/{id}:
+    get:
+      tags: [Jobs]
+      operationId: getJob
+      summary: Get a single job posting by ID
+      x-implementation-status: existing
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job posting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobPostResponse'
+        '404':
+          description: Job posting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Filter facets ─────────────────────────────────────────────────────────
+
+  /jobs/facets:
+    get:
+      tags: [Jobs]
+      operationId: getJobFacets
+      summary: Filter-aware (drill-down) facet counts for the job filter controls
+      x-implementation-status: new
+      description: |
+        Returns the set of companies, locations, languages, employment types and career
+        levels available to the search filter controls, with a count beside each value and
+        the overall compensation range. Counts are computed across the whole job-post table
+        (not just the current result page) so the controls are never limited to one page.
+
+        ## Drill-down semantics — "exclude own dimension"
+
+        All parameters are optional and mirror the filter parameters of `GET /jobs`. When
+        supplied, each facet group is computed against ALL active filters **except that
+        group's own dimension**, so the counts react to the user's current selection while
+        each control still offers the *other* values within its own dimension.
+
+        - `companies` is computed with every active filter applied **except** `company`.
+        - `locations` is computed with every active filter applied **except** `location`.
+        - `languages` is computed with every active filter applied **except** `language`.
+        - `employmentTypes` is computed with every active filter applied **except**
+          `employmentType`.
+        - `careerLevels` is computed with every active filter applied **except**
+          `careerLevel`.
+        - `compensationMin` / `compensationMax` bound the range over postings matching every
+          active filter **except** `compensationMin` / `compensationMax` (the comp filter
+          excludes its own dimension, exactly like the categorical groups). `keyword` and
+          `postedWithin` are not their own facet group, so they are applied to **every**
+          group (they only ever narrow, never need to be re-widened by the user).
+
+        Excluding a group's own dimension is what lets a user keep multi-selecting inside it:
+        after picking `location=France`, the `locations` group still lists Spain, Germany, …
+        with their France-independent counts so they can be added, while `companies`,
+        `languages`, `employmentTypes` and `careerLevels` reflect France-only postings.
+
+        Omitting all filter parameters yields the original table-wide facets, so existing
+        callers are unaffected. A value whose count would be zero under the active filters is
+        omitted from its group. `sort`, `page` and `size` are intentionally not accepted —
+        they do not affect aggregate counts.
+      security: []
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+          description: |
+            Full-text search across title and description. Applied to every facet group
+            (not a facet dimension itself).
+        - name: location
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Active location filter. Same value grammar and multi-location match semantics
+            as `GET /jobs` (`"Barcelona, Spain"`, a country alone, or `"Remote"`; a post
+            matches when any of its openings matches). Excluded from the `locations` group
+            only.
+        - name: language
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Active language filter. Excluded from the `languages` group only.
+        - name: company
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Active company filter. Excluded from the `companies` group only.
+        - name: employmentType
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [full-time, part-time, contract, freelance, internship]
+          description: |
+            Active employment-type filter. Excluded from the `employmentTypes` group only.
+        - name: careerLevel
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [internship, junior, mid, senior, lead, principal, manager, director]
+          description: |
+            Active career-level filter. Excluded from the `careerLevels` group only.
+        - name: compensationMin
+          in: query
+          schema:
+            type: integer
+          description: |
+            Active minimum-compensation filter (inclusive). Excluded from the returned
+            `compensationMin` / `compensationMax` range only.
+        - name: compensationMax
+          in: query
+          schema:
+            type: integer
+          description: |
+            Active maximum-compensation filter (inclusive). Excluded from the returned
+            `compensationMin` / `compensationMax` range only.
+        - name: postedWithin
+          in: query
+          schema:
+            type: string
+            enum: [today, 3d, week, month]
+          description: |
+            Active recency filter (derived from `firstSeenAt`). Applied to every facet group
+            (not a facet dimension itself).
+      responses:
+        '200':
+          description: |
+            Filter-aware facet counts. With no filter parameters this is the full table-wide
+            facet set; with filters it is the drill-down set described above.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobFacets'
+        '400':
+          description: |
+            Invalid filter parameter — e.g. an `employmentType`, `careerLevel` or
+            `postedWithin` value outside its enum.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Saved Jobs ──────────────────────────────────────────────────────────────
+
+  /jobs/saved:
+    get:
+      tags: [Saved Jobs]
+      operationId: listSavedJobs
+      summary: List the authenticated user's saved jobs
+      description: |
+        Returns a paginated list of job bookmarks for the authenticated user,
+        ordered by most recently saved first. Each entry embeds the full job posting.
+        The authenticated user is derived from the Bearer token.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based page index
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+      responses:
+        '200':
+          description: Paginated saved job list, ordered by most recently saved first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedJobPage'
+        '400':
+          description: Invalid pagination parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/saved/{jobId}:
+    put:
+      tags: [Saved Jobs]
+      operationId: saveJob
+      summary: Bookmark a job
+      description: |
+        Adds the specified job to the authenticated user's bookmarks.
+        Idempotent — if the job is already bookmarked, returns 204 without error.
+        The authenticated user is derived from the Bearer token.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the job posting to bookmark
+      responses:
+        '204':
+          description: Job bookmarked (or was already bookmarked)
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Job posting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Saved Jobs]
+      operationId: unsaveJob
+      summary: Remove a job bookmark
+      description: |
+        Removes the specified job from the authenticated user's bookmarks.
+        Idempotent — if the job was not bookmarked, returns 204 without error.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the job posting to unbookmark
+      responses:
+        '204':
+          description: Bookmark removed (or was not bookmarked)
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Saved Filters ────────────────────────────────────────────────────────────
+
+  /jobs/filters/saved:
+    get:
+      tags: [Saved Filters]
+      operationId: listSavedFilters
+      summary: List the authenticated user's saved search filter presets
+      description: |
+        Returns all saved filter presets for the authenticated user (max 5).
+        An empty array is returned when no presets have been saved yet.
+        The authenticated user is derived from the Bearer token.
+      responses:
+        '200':
+          description: Saved filter presets (max 5 items)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SavedFilterResponse'
+                maxItems: 5
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Saved Filters]
+      operationId: createSavedFilter
+      summary: Create a named filter preset
+      description: |
+        Saves the supplied filter values as a named preset for the authenticated user.
+        Returns 400 if the user already has 5 presets — the limit must be freed before
+        creating a new one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFilterRequest'
+      responses:
+        '201':
+          description: Filter preset created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilterResponse'
+        '400':
+          description: Validation error (missing required field, name too long) or preset limit of 5 reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/filters/saved/{id}:
+    delete:
+      tags: [Saved Filters]
+      operationId: deleteSavedFilter
+      summary: Delete a saved filter preset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the filter preset to delete
+      responses:
+        '204':
+          description: Preset deleted
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Filter preset not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Saved Filters]
+      operationId: updateSavedFilter
+      summary: Rename or update a saved filter preset
+      description: |
+        Partially updates a saved filter preset. Supply only the fields to change —
+        `name` to rename the preset, `filters` to replace the stored filter values, or both.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the filter preset to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFilterPatchRequest'
+      responses:
+        '200':
+          description: Preset updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilterResponse'
+        '400':
+          description: Validation error (name too long, empty patch body)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token
+        '404':
+          description: Filter preset not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Admin: trigger crawl / enrichment ─────────────────────────────────────────
+
+  /jobs/admin/triggers:
+    post:
+      tags: [Admin]
+      operationId: triggerPass
+      summary: Trigger a crawl or enrichment pass (admin only)
+      x-implementation-status: planned
+      description: |
+        Records an admin request to run a background crawl or enrichment pass. Requires the
+        `admin` JWT group. job-service does not run the pass itself: it writes a `queued` row
+        to `crawler.trigger_request` (cross-schema, the same way it writes saved jobs) and
+        returns **202**. crawler-service claims the row on its next poll, runs the existing
+        use case, and records the outcome. Poll `GET /jobs/admin/triggers/status` for progress.
+
+        Two gates apply, in this order:
+        1. **Enabled gate**: when `jobhub.admin.trigger.enabled=false`, returns **403**
+           `error: "Triggering Disabled"`. (Distinct from the 403 for a non-admin caller,
+           which is the standard JWT-policy denial.)
+        2. **Admin 2FA gate**: security is delegated to the admin's own 2FA choice. If the
+           authenticated admin has 2FA enabled on their account, the body MUST carry a valid
+           `code` (their own TOTP code or an 8-character backup code). job-service verifies it
+           against auth-service service-to-service, keyed on the admin's JWT subject (see ADR
+           0019). If the admin has NO 2FA enabled, the trigger fires directly with no code.
+           Missing/invalid/expired/reused code when 2FA is enabled ⇒ **422**
+           `error: "Verification Required"`. Auth-side attempt throttling surfaces as **429**.
+           There is no emailed request code and no `verificationId`: that path is removed
+           (ADR 0019 supersedes ADR 0003 section 4).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerRequestBody'
+      responses:
+        '202':
+          description: Request accepted and queued. The pass runs asynchronously on the crawler.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerResponse'
+        '400':
+          description: |
+            Malformed body: unknown `kind`, or `code` is neither a 6-digit TOTP code nor an
+            8-character backup code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token.
+        '403':
+          description: |
+            Either the caller is not an admin (no `admin` group), or triggering is disabled
+            by deployment config (`jobhub.admin.trigger.enabled=false`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: |
+            A pass of the same `kind` is already `queued` or `running`. Optional dedupe to
+            avoid stacking redundant passes; the UI should surface the in-flight run.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: |
+            The authenticated admin has 2FA enabled and the supplied `code` was missing,
+            invalid, expired, or already used (backup code). `error: "Verification Required"`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many 2FA verification attempts upstream (auth-side throttle).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: |
+            Story #574 / ADR 0033: crawler-service could not be reached, so the request was
+            NOT recorded and no pass will run. Since ADR 0033 job-service asks crawler-service
+            to queue the row (`POST /internal/trigger-requests`) instead of INSERTing it
+            cross-schema, so the crawler being down is now a visible failure rather than a
+            row nobody claims. job-service does not retry; the admin retries the click.
+
+            Body is exactly:
+            `{"error": "Crawler Unavailable", "message": "The crawler service is not
+            reachable, so the request could not be queued. Nothing was started. Try again
+            in a moment."}`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/admin/triggers/status:
+    get:
+      tags: [Admin]
+      operationId: getTriggerStatus
+      summary: Admin trigger availability and last-run status (admin only)
+      x-implementation-status: planned
+      description: |
+        Returns whether triggering is currently enabled, whether the authenticated admin must
+        supply a 2FA code (`twoFactorRequired`, derived from that admin's own 2FA state via
+        auth-service), and the most-recent request per kind (crawl, enrichment) for the admin
+        status panel. Requires the `admin` JWT group. `triggerEnabled` reflects the value the
+        running container was started with: see ADR 0003 for the "reloadable" semantics (change
+        the env var and recreate the container; no rebuild). See ADR 0019 for the 2FA gate.
+      responses:
+        '200':
+          description: Current trigger availability + last-run info per kind.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerStatusResponse'
+        '401':
+          description: Missing or invalid Bearer token.
+        '403':
+          description: Caller is not an admin (no `admin` group).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/admin/triggers/{kind}/cancel:
+    post:
+      tags: [Admin]
+      operationId: cancelTrigger
+      summary: Cancel an in-progress or queued trigger pass (admin only)
+      x-implementation-status: existing
+      description: |
+        Requests cancellation of the currently active (queued or running) trigger request
+        for the given kind. Requires the `admin` JWT group.
+
+        **Mechanism (ADR 0006, moved by ADR 0033):** the `trigger_request` row's status is
+        transitioned to `cancel_requested`. If the row was `queued` (never claimed by the
+        crawler), it is immediately set to the terminal `cancelled` status and the response
+        reflects that. If the row was `running`, the crawler detects `cancel_requested` on its
+        next loop iteration and stops work, transitioning the row to `cancelled`.
+
+        Since story #574 / ADR 0033 the write itself is performed by crawler-service, the sole
+        writer of the `crawler` schema: job-service authorizes the admin and then calls
+        `POST /internal/trigger-requests/{kind}/cancel` on crawler-service. crawler-service's
+        404 (no active request of this kind) is mapped back to the 409 below, so this public
+        contract is unchanged apart from the new 503.
+
+        Only admin-triggered runs (rows in `crawler.trigger_request`) are cancellable.
+        Cron-based scheduled runs have no row and cannot be stopped through this endpoint.
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/TriggerKind'
+          description: Which kind of pass to cancel (`crawl` or `enrichment`).
+      responses:
+        '200':
+          description: |
+            Cancellation acknowledged. The response body is the updated trigger request.
+            If the row was `queued`, `status` will be `cancelled` (immediate). If it was
+            `running`, `status` will be `cancel_requested` (the crawler will finish its
+            current item and then stop).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerResponse'
+        '401':
+          description: Missing or invalid Bearer token.
+        '403':
+          description: Caller is not an admin (no `admin` group).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: |
+            No active (queued or running) trigger request of this kind exists. The most
+            recent request has already reached a terminal status (succeeded, failed, or
+            cancelled), or no request of this kind has ever been made.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: |
+            Story #574 / ADR 0033: crawler-service could not be reached, so the cancellation
+            was NOT recorded and the active pass (if any) is still running. job-service does
+            not retry; the admin retries the click.
+
+            Same `error` title as the queue operation, message tailored to cancellation so the
+            admin panel is not told "nothing was started" while a pass is still running.
+            Body is exactly:
+            `{"error": "Crawler Unavailable", "message": "The crawler service is not
+            reachable, so the cancellation could not be recorded. Nothing was changed. Try
+            again in a moment."}`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Admin: company enrichment ─────────────────────────────────────────────────
+
+  /jobs/admin/companies:
+    get:
+      tags: [Admin]
+      operationId: listAdminCompanies
+      summary: Browse companies for the admin enrichment screen (admin only)
+      x-implementation-status: existing
+      description: |
+        Returns a paginated list of stored companies (`crawler.company`) for the admin
+        enrichment screen. Requires the `admin` JWT group; a non-admin caller gets the
+        standard 403 JWT-policy denial. Every entry is the FULL CompanyInfo projection
+        (`description` populated), unlike the size-sensitive public `GET /jobs` list.
+
+        The total number of companies matching the filter is returned in the `X-Total-Count`
+        response header (the repo's header-count convention), so the UI can page without a
+        body wrapper. Pagination is zero-based and mirrors `GET /jobs` (`page`, `size`).
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: |
+            Optional case-insensitive substring filter over the company `name`. Omitted
+            returns all companies.
+        - name: manuallyEdited
+          in: query
+          schema:
+            type: boolean
+          description: |
+            Optional provenance filter. `true` returns only admin-curated companies; `false`
+            only never-edited ones (the enrichment backlog). Omitted returns both.
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [name-asc, name-desc, updated-desc, updated-asc]
+            default: name-asc
+          description: Sort order. Defaults to alphabetical by name.
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based page index
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page (max 100)
+      responses:
+        '200':
+          description: |
+            Paginated company list (full CompanyInfo projection). `X-Total-Count` carries the
+            total number of companies matching the filter across all pages. Empty array when
+            none match.
+          headers:
+            X-Total-Count:
+              schema:
+                type: integer
+                format: int64
+              description: Total companies matching the filter across all pages.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyInfo'
+        '400':
+          description: Invalid pagination or sort parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token.
+        '403':
+          description: Caller is not an admin (no `admin` group).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/admin/companies/{id}:
+    get:
+      tags: [Admin]
+      operationId: getAdminCompany
+      summary: Read a single company by id (admin only)
+      x-implementation-status: existing
+      description: |
+        Returns one stored company by its `id` (the CompanyInfo.id key), full projection, for
+        the admin enrichment detail/edit screen. Requires the `admin` JWT group.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Identifier of the stored company row (CompanyInfo.id).
+      responses:
+        '200':
+          description: The company.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyInfo'
+        '401':
+          description: Missing or invalid Bearer token.
+        '403':
+          description: Caller is not an admin (no `admin` group).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No company exists with this id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [Admin]
+      operationId: updateAdminCompany
+      summary: Enrich a company's editable fields (admin only)
+      x-implementation-status: existing
+      description: |
+        Replaces the seven admin-editable fields (`website`, `industry`, `size`,
+        `headquarters`, `description`, `tags`, `logoUrl`) on the company identified by `id`,
+        and pins the row as manually edited. Requires the `admin` JWT group.
+
+        Replacement semantics (see CompanyUpdateRequest and ADR 0025): every editable field is
+        set from the body; a null or omitted field CLEARS the stored value. `id`, `slug` and
+        `name` are immutable through this endpoint.
+
+        Provenance side effects on success: job-service sets `manually_edited = true`,
+        `source = 'manual'` and `updated_at = now()`. This is the record-level override that
+        makes the whole company win over any later crawl: the resolution reconciler is
+        insert-only and never updates an existing row, and any future field-refresh UPDATE
+        MUST carry `WHERE manually_edited = false` (ADR 0024 D3 standing rule, carried into
+        ADR 0025). The response is the updated company with `manuallyEdited = true`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Identifier of the stored company row to enrich (CompanyInfo.id).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyUpdateRequest'
+      responses:
+        '200':
+          description: The updated company, with `manuallyEdited = true`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyInfo'
+        '400':
+          description: |
+            Validation error: a field exceeds its maximum length, a tag breaks the lowercase
+            kebab-case grammar, count or uniqueness rule, or a URL field is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer token.
+        '403':
+          description: Caller is not an admin (no `admin` group).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No company exists with this id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

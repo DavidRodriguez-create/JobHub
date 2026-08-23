@@ -1,0 +1,1750 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-service job-tracking platform — architecture, development & API reference.">
+      
+      
+      
+        <link rel="canonical" href="https://davidrodriguez-create.github.io/JobHub/architecture/adr/0017-multiple-locations-per-job-post/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>ADR 0017: Multiple locations per job post - JobHub</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#adr-0017-multiple-locations-per-job-post" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="JobHub" class="md-header__button md-logo" aria-label="JobHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JobHub
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              ADR 0017: Multiple locations per job post
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DavidRodriguez-create/JobHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidRodriguez-create/JobHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../development/local-setup/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../services/crawler/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Services
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../api/auth/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../deployment/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Deployment
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="JobHub" class="md-nav__button md-logo" aria-label="JobHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    JobHub
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DavidRodriguez-create/JobHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidRodriguez-create/JobHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hexagonal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hexagonal (Ports & Adapters)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../clean/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clean (Concentric layers)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/local-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/adding-a-feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding a feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/docs-site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/crawler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    crawler-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/job/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    auth-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    application-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../services/notification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notification-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    auth-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/job/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    application-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/notification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notification-service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#contract-api-contracts-job-serviceyaml-all-additive-x-implementation-status-planned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contract (api-contracts / job-service.yaml, all additive, x-implementation-status: planned)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scope-crawler-population-is-a-follow-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope: crawler population is a follow-up
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-considered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives considered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#update-2026-07-11-story-319-realises-single-source-multi-opening-population" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Update (2026-07-11): Story #319 realises single-source multi-opening population
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Update (2026-07-11): Story #319 realises single-source multi-opening population">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scope-decision-single-source-multi-opening-not-cross-source-dedup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope decision: single-source multi-opening, NOT cross-source dedup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-boundary-where-the-extra-openings-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The boundary: where the extra openings come from
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruling-2026-07-11-the-primary-opening-is-comma-split-hash-stays-on-the-raw-string" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ruling (2026-07-11): the primary opening is comma-split, hash stays on the raw string
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-does-not-change-reuse-do-not-rebuild" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What does NOT change (reuse, do not rebuild)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#contract-change-this-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contract change (this update)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#risks-for-the-developers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Risks for the developers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="adr-0017-multiple-locations-per-job-post">ADR 0017: Multiple locations per job post<a class="headerlink" href="#adr-0017-multiple-locations-per-job-post" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-07-05</li>
+<li><strong>Deciders:</strong> jobhub-architect (David R H)</li>
+<li><strong>Affects:</strong> crawler-service, job-service, api-contracts, db/init, JobHub-ui</li>
+</ul>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
+<p>Story #1 (sub-issues #291 crawler, #292 job-service): a single job post can have
+openings in several countries/cities, and the product must store and show all countries
+related to an opening.</p>
+<p>Today <code>crawler.job_post</code> carries exactly one location as two flat columns, <code>city TEXT</code>
+and <code>country TEXT</code> (see <code>db/init/010-crawler.sql</code>). crawler-service owns that schema;
+job-service reads it cross-schema and exposes:</p>
+<ul>
+<li>a single <code>location</code> string per posting, derived in the domain model as
+  <code>city + ", " + country</code> (or the non-blank part alone);</li>
+<li>a repeatable <code>location</code> filter (<code>appendLocation</code> in <code>JobPostPanacheRepository</code>) that
+  splits each value on comma — <code>city,country</code> matches both columns, a single token
+  matches <code>city OR country</code>, and <code>"Remote"</code> matches <code>LOWER(city)='remote' OR
+  LOWER(country)='remote'</code>;</li>
+<li>a <code>locations</code> facet (<code>locationFacets</code>) that groups by <code>country</code> (non-remote) and adds a
+  synthetic <code>"Remote"</code> bucket.</li>
+</ul>
+<p>There is no "remote" flag; <code>"Remote"</code> is a magic value stored in <code>city</code>/<code>country</code>.</p>
+<p>Constraints:</p>
+<ul>
+<li><strong>Backward compatibility is mandatory.</strong> The single <code>city</code>/<code>country</code> columns, the
+  single-<code>location</code> API string, the <code>content_hash</code> (which hashes <code>city</code>), and the 017
+  performance indexes on <code>LOWER(city)</code>/<code>LOWER(country)</code>/<code>(country,city)</code> must keep working.</li>
+<li>Contract-first: the API surface changes in <code>api-contracts</code> first (interface-only gen),
+  additively.</li>
+<li>The database is owned by numbered <code>db/init</code> SQL; schema-per-service; <code>crawler_user</code> owns
+  the crawler schema, <code>job_user</code> gets least-privilege SELECT.</li>
+<li>Both services are Hexagonal.</li>
+</ul>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p><strong>We will add a one-to-many child table <code>crawler.job_post_location</code> and keep the existing
+<code>crawler.job_post.city</code>/<code>country</code> columns as the PRIMARY location.</strong></p>
+<p>Data model (see <code>db/init/014-crawler-job-post-location.sql</code>):</p>
+<ul>
+<li><code>job_post_location(id, job_post_id FK ON DELETE CASCADE, country, city, is_primary,
+  position, created_at)</code>.</li>
+<li><code>(country, city)</code> carry the same semantics as the parent columns: either part may be
+  NULL; <code>"Remote"</code> may live in either; no separate flag.</li>
+<li>Exactly one row per post has <code>is_primary = TRUE</code> (partial unique index). The primary row
+  <strong>mirrors</strong> <code>job_post.city</code>/<code>country</code>, so the child table alone is a complete picture of
+  every opening, primary included.</li>
+<li><code>UNIQUE NULLS NOT DISTINCT (job_post_id, country, city)</code> dedupes openings per post.</li>
+<li>The migration backfills one <code>is_primary</code> row per existing post from its current
+  <code>city</code>/<code>country</code>, and grants <code>job_user</code> SELECT.</li>
+</ul>
+<p><code>job_post.city</code>/<code>country</code> remain the source of truth for the primary location, the
+<code>content_hash</code>, and the single-<code>location</code> string. crawler-service writes both the parent
+columns (primary) and the full child set; when it only knows one location, it writes one
+primary child row and the picture is unchanged.</p>
+<h3 id="contract-api-contracts-job-serviceyaml-all-additive-x-implementation-status-planned">Contract (api-contracts / <code>job-service.yaml</code>, all additive, <code>x-implementation-status: planned</code>)<a class="headerlink" href="#contract-api-contracts-job-serviceyaml-all-additive-x-implementation-status-planned" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>JobPostResponse.location</code> (string) is unchanged: the <strong>primary</strong> opening.</li>
+<li>New <code>JobPostResponse.locations</code>: array of new <code>JobLocation { country?, city?, primary }</code>,
+  primary first. A single-opening post returns one entry equal to <code>location</code>.</li>
+<li><code>location</code> filter (on <code>GET /jobs</code> and <code>GET /jobs/facets</code>): a post matches when <strong>any</strong> of
+  its openings matches <strong>any</strong> supplied value; each matching post is returned once
+  (dedup by post id). Implemented as an <code>EXISTS</code> over <code>job_post_location</code> OR-ed with the
+  existing primary-column predicate (so it still works before/without child rows).</li>
+<li><code>locations</code> facet: distinct countries across <strong>all</strong> of each post's openings, counting a
+  post once per distinct country (duplicate same-country openings collapse), plus the
+  <code>"Remote"</code> bucket. Sums across countries may exceed the post count — documented in the
+  schema. The drill-down "exclude own dimension" semantics (ADR 0001) are preserved.</li>
+</ul>
+<h3 id="scope-crawler-population-is-a-follow-up">Scope: crawler population is a follow-up<a class="headerlink" href="#scope-crawler-population-is-a-follow-up" title="Permanent link">&para;</a></h3>
+<p><strong>This story delivers storage + API + UI surface. crawler-service does NOT yet populate
+multiple openings from job-board sources.</strong> #291 delivers the table, the backfill (one
+primary row per post), and writes the primary row on new posts; it does not add
+multi-location extraction. Rationale: most sources give one location per posting, so the
+genuine multi-location signal comes from <strong>dedup/merge of the same posting across country
+sites</strong> (or an enrichment pass), which is a separate, larger change. Freezing the storage
+and contract now unblocks job-service (#292) and the UI immediately, with real multi-value
+population added later behind the already-frozen shape (a follow-up ticket).</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Positive: fully backward compatible — existing columns, string, hash, indexes, filter
+  and facet all keep working; the contract change is purely additive.</li>
+<li>Positive: the child table is the single complete source of openings (primary mirrored in),
+  so response mapping and facets read one place.</li>
+<li>Positive: filter/facet extend by OR-ing an <code>EXISTS</code>/JOIN onto the current predicates, so
+  they degrade gracefully to today's behaviour when a post has only the primary row.</li>
+<li>Negative / cost: crawler-service must now keep the primary child row in sync with
+  <code>job_post.city</code>/<code>country</code> on write (two writes in one transaction).</li>
+<li>Negative / cost: the <code>locations</code> facet and <code>location</code> filter gain a join/unnest;
+  mitigated by <code>idx_job_post_location_lower_country</code> / <code>_lower_city</code>. Facet cost is the main
+  risk — see Risks in the handoff; validate the query plan against seed data.</li>
+<li>Negative / cost: per-country facet counts must <code>COUNT(DISTINCT post)</code> to avoid
+  double-counting a post with two openings in the same country.</li>
+<li>Follow-ups: a later ticket adds real multi-location population (dedup/merge or enrichment);
+  QAE must cover duplicate-country dedup, the Remote bucket with child rows, and
+  filter-returns-post-once.</li>
+</ul>
+<h2 id="alternatives-considered">Alternatives considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong><code>country</code>/<code>city</code> as <code>TEXT[]</code> arrays on <code>job_post</code></strong> — rejected: loses the per-opening
+  pairing (which city goes with which country), complicates the primary/<code>content_hash</code>
+  story, and the <code>city,country</code> filter form and per-country facet get awkward. A child
+  table pairs cleanly and reuses the 017 <code>LOWER()</code> index pattern.</li>
+<li><strong>JSONB column of openings</strong> — rejected: no clean per-country GROUP BY for the facet,
+  weaker indexing for the case-insensitive match, and no FK/dedup guarantees.</li>
+<li><strong>Replace <code>city</code>/<code>country</code> with the child table (no primary columns)</strong> — rejected:
+  breaks backward compatibility (single-<code>location</code> string, <code>content_hash</code>, 017 indexes) and
+  forces a bigger, riskier migration for no near-term benefit.</li>
+<li><strong>Populate multi-location from sources now</strong> — deferred, not rejected: most sources are
+  single-location; the real signal is cross-country dedup/merge, a separate change. Freezing
+  storage + contract now is the minimal, additive step.</li>
+</ul>
+<h2 id="update-2026-07-11-story-319-realises-single-source-multi-opening-population">Update (2026-07-11): Story #319 realises single-source multi-opening population<a class="headerlink" href="#update-2026-07-11-story-319-realises-single-source-multi-opening-population" title="Permanent link">&para;</a></h2>
+<p>Story #305 shipped only the plumbing frozen above: the child table, the backfill, the
+job-service filter/facet, and the UI surface, with <code>crawler.additionalLocations</code> always empty
+and the contract fields <code>JobPostResponse.locations</code> + <code>JobLocation</code> held at
+<code>x-implementation-status: planned</code>. Story #319 (tickets #323 crawler, #324 job) makes
+multi-location real end-to-end and flips those two fields to <code>existing</code>. This section records
+the scope boundary the deferral above left open.</p>
+<h3 id="scope-decision-single-source-multi-opening-not-cross-source-dedup">Scope decision: single-source multi-opening, NOT cross-source dedup<a class="headerlink" href="#scope-decision-single-source-multi-opening-not-cross-source-dedup" title="Permanent link">&para;</a></h3>
+<p>We deliver <strong>single-source multi-opening extraction</strong>: one posting that, in the source
+client's own list payload, already enumerates several offices/locations. We explicitly do
+<strong>NOT</strong> deliver <strong>cross-source / cross-country dedup-merge</strong> (recognising that the "same"
+posting fetched under two country facets, or from two boards, is one logical job with several
+openings). Cross-source merge needs a stable cross-posting identity key and a merge pass that
+does not exist today; it stays a separate, larger follow-up. Single-source multi-opening needs
+no identity key: the openings are already grouped under one posting by the source itself.</p>
+<h3 id="the-boundary-where-the-extra-openings-come-from">The boundary: where the extra openings come from<a class="headerlink" href="#the-boundary-where-the-extra-openings-come-from" title="Permanent link">&para;</a></h3>
+<p>The additional openings are read in the <strong>source client parse step</strong>
+(<code>adapter/out/client/source/*</code>, e.g. Lever <code>parseJobs</code>), from an array field already present
+in the API response the client fetches. No new HTTP calls, no enrichment/LLM pass, no new
+pipeline stage.</p>
+<ul>
+<li><strong>Primary source (reliable): Lever <code>categories.allLocations[]</code>.</strong> The Lever v0 postings
+  payload carries <code>categories.location</code> (the single canonical location string, e.g.
+  <code>"Barcelona, Spain"</code>) plus <code>categories.allLocations</code>, an array of every location the posting
+  is open in. <code>categories.location</code> stays the PRIMARY opening, but it is now comma-split into
+  <code>(city, country)</code> (see the Ruling below) instead of being stored raw in <code>city</code> with <code>country</code>
+  null. The remaining <code>allLocations</code> entries are comma-split the same way and mapped into
+  <code>JobPost.additionalLocations</code>. This is the honest slice that reliably yields &gt;1 real opening.</li>
+<li><strong>Secondary candidate (verify fixtures first): Greenhouse <code>offices[]</code>.</strong> Greenhouse jobs can
+  carry an <code>offices</code> array alongside the single <code>location.name</code>. It MAY be geographic or MAY be
+  org-structure; the developer should confirm against a real captured fixture before mapping it,
+  and skip it if the office names are not locations. Not required for the story to be "done".</li>
+<li><strong>Not viable in this slice:</strong> Workday <code>locationsText</code> is a summarised string ("2 Locations"),
+  not enumerable from the list endpoint; SmartRecruiters and Amazon return one <code>{city,country}</code>
+  per posting row by API shape (Amazon sweeps configured locations, but each result row is a
+  single place). These stay single-opening until a detail-fetch or merge pass is built.</li>
+</ul>
+<h3 id="ruling-2026-07-11-the-primary-opening-is-comma-split-hash-stays-on-the-raw-string">Ruling (2026-07-11): the primary opening is comma-split, hash stays on the raw string<a class="headerlink" href="#ruling-2026-07-11-the-primary-opening-is-comma-split-hash-stays-on-the-raw-string" title="Permanent link">&para;</a></h3>
+<p>A shape-gate question surfaced during build: <code>LeverJobSourceClient</code> today stores
+<code>city = categories.location</code> (the whole raw string) with <code>country</code> null, and feeds that same
+raw string into <code>JobPost.computeHash</code>. The ruling for ticket #323, verbatim:</p>
+<ol>
+<li>
+<p><strong>Primary opening: comma-split it.</strong> Parse <code>categories.location</code> into <code>(city, country)</code> and
+   store the split values in the primary <code>city</code>/<code>country</code> (domain <code>JobPost.city</code>/<code>country</code>), NOT
+   the raw string with a null country. Reuse ONE parse helper: promote Greenhouse's
+   <code>parseCity</code>/<code>parseCountry</code> into a shared <code>adapter/out/client/support</code> helper (e.g.
+   <code>LocationParser</code>) and call it from Lever, Greenhouse, and the additional-locations mapping so
+   all three split identically. Rationale: <code>syncLocations</code> mirrors the primary opening into an
+   <code>is_primary</code> child row from <code>domain.city</code>/<code>country</code>; if the primary stayed an unsplit string
+   with a null country, the PRIMARY opening would carry no country and would be invisible to the
+   country facet and the country <code>location</code> filter, defeating the story for the main opening.</p>
+</li>
+<li>
+<p><strong><code>computeHash</code> stays fed by the raw <code>categories.location</code> string.</strong> Confirmed: the column
+   split does NOT re-key any posting, because the hash input is the raw location string (the 3rd
+   <code>computeHash</code> argument), not the <code>city</code> column value. Keep it exactly as today. Seed/behaviour
+   impact: on a fresh dev/test volume every Lever row is inserted with the split primary, so
+   component seeds and QAE cases must expect <code>(city="Barcelona", country="Spain")</code>, not
+   <code>(city="Barcelona, Spain", country=null)</code>. Existing prod rows keep their old parent columns
+   until re-crawled (the hash is unchanged, so re-crawl hits the update path): see point 4.
+   Country faceting/filtering of those pre-existing rows is still correct because the freshly
+   written primary child row carries the split country regardless.</p>
+</li>
+<li>
+<p><strong><code>additionalLocations</code>: comma-split each entry, deduped against the primary.</strong> Map every
+   <code>categories.allLocations[]</code> entry through the same <code>LocationParser</code> into a
+   <code>JobPostLocation(city, country, primary=false)</code>. As shipped, <code>LeverJobSourceClient</code> performs a
+   narrow, case-insensitive exclusion of the entry that matches the primary at parse time (so
+   <code>JobPost.additionalLocations</code> off <code>parseJobs()</code> never carries the primary as a duplicate,
+   which the pre-persistence test cases TC-319-CRAWL-01/03/04 assert). The authoritative n-way
+   <code>(country, city)</code> dedup remains <code>JobPostMapper.toLocationEntities</code> (case-insensitive, primary
+   first) as the downstream safety net; the client does not re-implement it, it only excludes the
+   primary match.</p>
+</li>
+<li>
+<p><strong>Preserve the parent to primary-child mirror on update.</strong> <code>updateEntity</code> currently rewrites
+   only title/url/description/lastSeenAt, so a re-crawled existing Lever row would keep its stale
+   unsplit parent <code>city</code>/<code>country</code> while <code>syncLocations</code> writes a freshly-split primary child
+   row, breaking ADR 0017's "primary child mirrors the parent columns" invariant. To keep the
+   invariant true and let existing rows self-heal, also re-sync <code>city</code>/<code>country</code> from the domain
+   on the update path. This is safe and idempotent: the update path only runs on a hash match,
+   which guarantees the raw location string (and therefore its deterministic split) is identical,
+   and <code>updateEntity</code> does not recompute <code>content_hash</code>, so the stored hash is untouched.</p>
+</li>
+</ol>
+<h3 id="what-does-not-change-reuse-do-not-rebuild">What does NOT change (reuse, do not rebuild)<a class="headerlink" href="#what-does-not-change-reuse-do-not-rebuild" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Persistence is already complete.</strong> <code>JobPostMapper.toLocationEntities</code> builds one child row
+  per DISTINCT <code>(country, city)</code> opening from <code>domain.locations()</code>, primary first (position 0),
+  deduping case-insensitively and keeping the primary when a duplicate appears;
+  <code>JobPostPanacheRepository.syncLocations</code> delete-then-reinserts the full child set in the parent
+  write transaction. Beyond the primary split and the update-path re-sync (Ruling above),
+  populating <code>additionalLocations</code> in the client is the crawler change needed for storage; the
+  write path already fans the full opening set out to N child rows.</li>
+<li><strong><code>content_hash</code> and the single-<code>location</code> string are unchanged; <code>job_post.city</code>/<code>country</code> now
+  hold the SPLIT primary.</strong> <code>computeHash</code> keeps being fed the raw <code>categories.location</code> string
+  (not the split <code>city</code>), so no posting is re-keyed and update-in-place dedup and the 017 indexes
+  are unaffected. The primary <code>city</code>/<code>country</code> columns move from raw-string/null to
+  <code>(city, country)</code> (Ruling above); job-service's derived single-<code>location</code> string recomposes to
+  the same display value (<code>"Barcelona, Spain"</code>), so the response is unchanged.</li>
+<li><strong>job-service needs no filter/facet code change.</strong> The <code>location</code> filter already OR-s the
+  primary-column predicate with an <code>EXISTS</code> over <code>job_post_location</code> (correlated on <code>j.id</code>, not a
+  JOIN, so a multi-opening post is returned once), and the <code>locations</code> facet already merges the
+  primary-column and child-row <code>(post, country)</code> sets via a <code>Set</code> and counts <code>DISTINCT post</code> per
+  country. #324 is verify/harden only: add a zero-location case, confirm the returned-once and
+  duplicate-country-collapse behaviour against real multi-child seed data, and re-check the facet
+  query plan (<code>EXPLAIN</code>) now that child rows are non-empty. No JPQL/SQL change is expected.</li>
+</ul>
+<h3 id="contract-change-this-update">Contract change (this update)<a class="headerlink" href="#contract-change-this-update" title="Permanent link">&para;</a></h3>
+<p>Additive and backward-compatible: <code>JobPostResponse.locations</code> and the <code>JobLocation</code> schema flip
+from <code>x-implementation-status: planned</code> to <code>existing</code> in <code>api-contracts/.../job-service.yaml</code>.
+The <code>location</code> filter and <code>locations</code> facet descriptions already state the primary-OR-child match
+and DISTINCT-post-per-country counting semantics precisely and are left as frozen. The unrelated
+<code>Trigger*</code> schemas are not touched.</p>
+<h3 id="migrations">Migrations<a class="headerlink" href="#migrations" title="Permanent link">&para;</a></h3>
+<p><strong>N/A for both #323 (crawler) and #324 (job).</strong> Schema is out of scope: <code>crawler.job_post_location</code>
+(table, <code>is_primary</code> partial-unique index, <code>(job_post_id, country, city)</code> dedup constraint,
+backfill, <code>job_user</code> SELECT grant) already exists from <code>db/init/014-crawler-job-post-location.sql</code>,
+and the <code>LOWER(country)</code>/<code>LOWER(city)</code> performance indexes from <code>017</code>. No new <code>db/init/NNN</code> file is
+assigned to either ticket.</p>
+<h3 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h3>
+<p>Both services stay <strong>Hexagonal</strong>. All crawler changes live in <code>adapter/out/client/source/*</code>
+(a boundary adapter) and flow into the unchanged domain model (<code>JobPost.additionalLocations</code>) and
+the unchanged persistence adapter. No domain, port, or layering change.</p>
+<h3 id="risks-for-the-developers">Risks for the developers<a class="headerlink" href="#risks-for-the-developers" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Lever is the only source that reliably yields &gt;1 real opening in this slice.</strong> Targets that
+  are not Lever, or Lever roles posted at a single office, will still write exactly one primary
+  child row. QAE/component coverage for genuine multi-child behaviour must seed Lever-style data
+  (or seed <code>job_post_location</code> directly); do not expect SmartRecruiters/Amazon/Workday fixtures to
+  produce multiple openings.</li>
+<li><strong>Do not change what feeds <code>computeHash</code>.</strong> Keep passing the raw <code>categories.location</code> string as
+  the hash input, exactly as today. The primary column split (raw string to <code>(city, country)</code>)
+  does NOT touch the hash input, so it does not re-key any posting (QAE reasoning confirmed).
+  Hashing the split <code>city</code> instead is what would re-key every posting and break update-in-place
+  dedup, so do not do that.</li>
+<li><strong>Greenhouse <code>offices[]</code> is unconfirmed.</strong> Treat it as optional and fixture-gated; do not ship a
+  mapping that turns org-structure office names into fake locations.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "content.code.copy", "content.code.annotate", "search.suggest", "search.highlight", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

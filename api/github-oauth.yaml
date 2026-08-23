@@ -1,0 +1,148 @@
+openapi: 3.0.3
+info:
+  title: GitHub OAuth token + user API (external)
+  version: 1.0.0
+  description: |
+    Minimal contract for the subset of GitHub's OAuth token exchange and REST API that
+    auth-service calls to complete social login (story #459, ADR 0027). This is an
+    EXTERNAL API we call, not one we serve; it lives here so the request/response
+    models are generated from a single source of truth, like every other contract.
+
+    Models only (generateApis=false): the token endpoint uses a form-encoded body and
+    lives on a different host (github.com) than the REST API (api.github.com), so the
+    consuming service (auth-service) declares its own @RegisterRestClient interfaces
+    (GithubTokenClient, GithubApiClient) referencing these models. The operations are
+    described here only to document the endpoints and anchor the schemas.
+
+paths:
+  /login/oauth/access_token:
+    post:
+      operationId: exchangeGithubToken
+      summary: Exchange an authorization code for an access token
+      x-implementation-status: existing
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                client_id:
+                  type: string
+                client_secret:
+                  type: string
+                code:
+                  type: string
+                redirect_uri:
+                  type: string
+      responses:
+        '200':
+          description: The access token issued for the authorization code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GithubTokenResponse'
+
+  /user:
+    get:
+      operationId: getGithubUser
+      summary: Fetch the authenticated GitHub user's public profile
+      x-implementation-status: existing
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The authenticated GitHub account's public profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GithubUserResponse'
+
+  /user/emails:
+    get:
+      operationId: getGithubUserEmails
+      summary: List the authenticated GitHub user's email addresses (requires user:email scope)
+      x-implementation-status: existing
+      description: |
+        auth-service selects the entry that is both `primary: true` and `verified: true`
+        (BR3); GitHub's base `/user` profile omits email unless this scope was granted.
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The account's email addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GithubEmailResponse'
+
+components:
+  schemas:
+
+    GithubTokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+        scope:
+          type: string
+        error:
+          type: string
+          description: |
+            GitHub does NOT use a 4xx status for OAuth token failures: a bad or expired
+            `code`, a mismatched `redirect_uri`, and wrong client credentials all come back
+            as HTTP 200 with `access_token` absent and this field set (e.g.
+            `incorrect_client_credentials`, `bad_verification_code`, `redirect_uri_mismatch`).
+            auth-service must treat a blank `access_token` as an authorization failure (401),
+            not carry a null token into `/user` and mis-report the result as a provider
+            outage (502). See ADR 0028.
+        error_description:
+          type: string
+          description: Human-readable detail for `error`. Safe to log; never contains the client secret.
+        error_uri:
+          type: string
+          description: GitHub documentation link for `error`.
+
+    GithubUserResponse:
+      type: object
+      description: |
+        `name` (the public display name) is optional; a first-time subject with no
+        public name falls back to `login` for the account's name fields (BR8).
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: The stable GitHub numeric user id (durable identity key, BR5).
+        login:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        avatar_url:
+          type: string
+
+    GithubEmailResponse:
+      type: object
+      properties:
+        email:
+          type: string
+        primary:
+          type: boolean
+        verified:
+          type: boolean
+        visibility:
+          type: string
+          nullable: true
